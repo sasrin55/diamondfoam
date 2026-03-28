@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CallSync — Call Intelligence Dashboard</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .animate-spin { animation: spin 1s linear infinite; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.25s ease-out; }
+    .bar-fill { transition: width 0.6s ease; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const API = 'http://localhost:3001/api';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmtDuration(s) {
+  if (!s || s === 0) return '—';
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${m}m ${sec}s`;
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function DirectionPill({ direction }) {
+  const styles = {
+    Inbound: 'bg-emerald-900/60 text-emerald-300 border border-emerald-700',
+    Outbound: 'bg-blue-900/60 text-blue-300 border border-blue-700',
+    Missed: 'bg-red-900/60 text-red-300 border border-red-700',
+  };
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[direction] || 'bg-slate-700 text-slate-300'}`}>
+      {direction}
+    </span>
+  );
+}
+
+function FlagBadge({ flagged, reason }) {
+  if (!flagged) return <span className="text-slate-500 text-xs">—</span>;
+  return (
+    <span title={reason || ''} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-900/60 text-red-300 border border-red-700">
+      ⚑ Flagged
+    </span>
+  );
+}
+
+function Spinner() {
+  return (
+    <div className="w-5 h-5 border-2 border-slate-600 border-t-indigo-400 rounded-full animate-spin inline-block" />
+  );
+}
+
+// ── Stat Card ────────────────────────────────────────────────────────────────
+
+function StatCard({ label, value, sub, color = 'indigo' }) {
+  const colors = {
+    indigo: 'from-indigo-900/40 to-indigo-800/20 border-indigo-700/40',
+    emerald: 'from-emerald-900/40 to-emerald-800/20 border-emerald-700/40',
+    amber: 'from-amber-900/40 to-amber-800/20 border-amber-700/40',
+    red: 'from-red-900/40 to-red-800/20 border-red-700/40',
+  };
+  const val_colors = { indigo: 'text-indigo-300', emerald: 'text-emerald-300', amber: 'text-amber-300', red: 'text-red-300' };
+  return (
+    <div className={`bg-gradient-to-br ${colors[color]} border rounded-xl p-5`}>
+      <p className="text-slate-400 text-sm font-medium">{label}</p>
+      <p className={`text-3xl font-bold mt-1 ${val_colors[color]}`}>{value}</p>
+      {sub && <p className="text-slate-500 text-xs mt-1">{sub}</p>}
+    </div>
+  );
+}
+
+// ── Bar Chart (pure CSS) ─────────────────────────────────────────────────────
+
+function BarChart({ data, colorClass = 'bg-indigo-500', title }) {
+  if (!data || data.length === 0) return <p className="text-slate-500 text-sm">No data yet.</p>;
+  const max = Math.max(...data.map(d => d.count), 1);
+  return (
+    <div>
+      {title && <h3 className="text-slate-300 font-semibold mb-3 text-sm">{title}</h3>}
+      <div className="space-y-2">
+        {data.map((d, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="text-slate-400 text-xs w-32 truncate shrink-0" title={d.name}>{d.name}</span>
+            <div className="flex-1 h-5 bg-slate-800 rounded overflow-hidden">
+              <div
+                className={`${colorClass} h-full rounded bar-fill flex items-center justify-end pr-1`}
+                style={{ width: `${(d.count / max) * 100}%` }}
+              >
+                <span className="text-white text-xs font-bold">{d.count}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Recent Calls Table ────────────────────────────────────────────────────────
+
+function RecentCallsTable({ calls, onSelect }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-slate-700">
+            {['Employee', 'Distributor', 'Direction', 'Duration', 'Date', 'Status'].map(h => (
+              <th key={h} className="text-left py-2 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {calls.map(call => (
+            <tr
+              key={call.id}
+              onClick={() => onSelect(call)}
+              className="border-b border-slate-800 hover:bg-slate-800/60 cursor-pointer transition-colors"
+            >
+              <td className="py-2.5 px-3 text-slate-200 font-medium">{call.employee_name}</td>
+              <td className="py-2.5 px-3 text-slate-300">{call.distributor_name}</td>
+              <td className="py-2.5 px-3"><DirectionPill direction={call.direction} /></td>
+              <td className="py-2.5 px-3 text-slate-400">{fmtDuration(call.duration_seconds)}</td>
+              <td className="py-2.5 px-3 text-slate-400">{fmtDate(call.recorded_at)}</td>
+              <td className="py-2.5 px-3"><FlagBadge flagged={call.flagged} reason={call.flag_reason} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {calls.length === 0 && (
+        <p className="text-slate-500 text-center py-8">No calls found. Seed demo data or upload a call.</p>
+      )}
+    </div>
+  );
+}
+
+// ── Dashboard Tab ─────────────────────────────────────────────────────────────
+
+function DashboardTab({ onNavigate }) {
+  const [stats, setStats] = useState(null);
+  const [recent, setRecent] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`${API}/stats`).then(r => r.json()),
+      fetch(`${API}/calls`).then(r => r.json())
+    ]).then(([s, c]) => {
+      setStats(s);
+      setRecent(Array.isArray(c) ? c.slice(0, 10) : []);
+    }).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-64 gap-3">
+      <Spinner /><span className="text-slate-400">Loading dashboard...</span>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6 fade-in">
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Total Calls" value={stats?.total_calls ?? 0} color="indigo" />
+        <StatCard label="Avg Duration" value={fmtDuration(stats?.avg_duration_seconds)} color="emerald" />
+        <StatCard label="Distributors Reached" value={stats?.total_distributors ?? 0} sub={`${stats?.total_employees ?? 0} employees`} color="amber" />
+        <StatCard label="Flagged Calls" value={stats?.flagged_calls ?? 0} sub="Need attention" color="red" />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
+          <BarChart title="Calls by Employee" data={stats?.calls_by_employee} colorClass="bg-indigo-500" />
+        </div>
+        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
+          <BarChart title="Top Distributors" data={stats?.calls_by_distributor} colorClass="bg-emerald-500" />
+        </div>
+      </div>
+
+      {/* Recent calls */}
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-slate-200 font-semibold">Recent Calls</h3>
+          <button onClick={() => onNavigate('log')} className="text-indigo-400 hover:text-indigo-300 text-sm transition-colors">
+            View all →
+          </button>
+        </div>
+        <RecentCallsTable calls={recent} onSelect={setSelected} />
+      </div>
+
+      {selected && <CallDetailModal call={selected} onClose={() => setSelected(null)} />}
+    </div>
+  );
+}
+
+// ── Call Detail Modal ─────────────────────────────────────────────────────────
+
+function CallDetailModal({ call, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto scrollbar-hide fade-in" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between p-5 border-b border-slate-700">
+          <div>
+            <h2 className="text-slate-100 font-semibold text-lg">{call.employee_name} → {call.distributor_name}</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <DirectionPill direction={call.direction} />
+              <span className="text-slate-400 text-sm">{fmtDuration(call.duration_seconds)}</span>
+              <span className="text-slate-500 text-sm">{fmtDate(call.recorded_at)}</span>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 text-xl leading-none">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          {call.flagged && (
+            <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-3 text-sm text-red-300">
+              ⚑ <strong>Flagged:</strong> {call.flag_reason}
+            </div>
+          )}
+          {call.summary && (
+            <section>
+              <h3 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">Summary</h3>
+              <p className="text-slate-200 text-sm leading-relaxed">{call.summary}</p>
+            </section>
+          )}
+          {call.topics?.length > 0 && (
+            <section>
+              <h3 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">Topics</h3>
+              <div className="flex flex-wrap gap-2">
+                {call.topics.map((t, i) => (
+                  <span key={i} className="px-2.5 py-1 bg-indigo-900/50 text-indigo-300 border border-indigo-700/40 rounded-full text-xs">{t}</span>
+                ))}
+              </div>
+            </section>
+          )}
+          {call.action_items?.length > 0 && (
+            <section>
+              <h3 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">Action Items</h3>
+              <ul className="space-y-1.5">
+                {call.action_items.map((a, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                    <span className="text-indigo-400 mt-0.5">◆</span>{a}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {call.transcript && (
+            <section>
+              <h3 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">Transcript</h3>
+              <div className="bg-slate-950/60 border border-slate-700 rounded-lg p-3 text-slate-300 text-sm leading-relaxed max-h-48 overflow-y-auto scrollbar-hide">
+                {call.transcript}
+              </div>
+            </section>
+          )}
+          {!call.summary && !call.transcript && (
+            <p className="text-slate-500 text-sm text-center py-4">No AI analysis available for this call.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Call Log Tab ──────────────────────────────────────────────────────────────
+
+function CallLogTab() {
+  const [calls, setCalls] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ employee: '', direction: '', flagged: false, search: '' });
+  const [expanded, setExpanded] = useState(null);
+  const [employees, setEmployees] = useState([]);
+
+  const fetchCalls = useCallback(() => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (filters.employee) params.set('employee', filters.employee);
+    if (filters.direction) params.set('direction', filters.direction);
+    if (filters.flagged) params.set('flagged', 'true');
+    if (filters.search) params.set('search', filters.search);
+
+    fetch(`${API}/calls?${params}`)
+      .then(r => r.json())
+      .then(data => {
+        const arr = Array.isArray(data) ? data : [];
+        setCalls(arr);
+        const emp = [...new Set(arr.map(c => c.employee_name))].sort();
+        setEmployees(emp);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [filters]);
+
+  useEffect(() => { fetchCalls(); }, [fetchCalls]);
+
+  const toggle = (id) => setExpanded(prev => prev === id ? null : id);
+
+  return (
+    <div className="space-y-4 fade-in">
+      {/* Filter bar */}
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 flex flex-wrap gap-3 items-center">
+        <select
+          value={filters.employee}
+          onChange={e => setFilters(f => ({ ...f, employee: e.target.value }))}
+          className="bg-slate-900 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+        >
+          <option value="">All Employees</option>
+          {employees.map(e => <option key={e} value={e}>{e}</option>)}
+        </select>
+        <select
+          value={filters.direction}
+          onChange={e => setFilters(f => ({ ...f, direction: e.target.value }))}
+          className="bg-slate-900 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+        >
+          <option value="">All Directions</option>
+          <option>Inbound</option>
+          <option>Outbound</option>
+          <option>Missed</option>
+        </select>
+        <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={filters.flagged}
+            onChange={e => setFilters(f => ({ ...f, flagged: e.target.checked }))}
+            className="w-4 h-4 accent-red-500"
+          />
+          Flagged only
+        </label>
+        <input
+          type="text"
+          placeholder="Search calls..."
+          value={filters.search}
+          onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+          className="bg-slate-900 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 w-48"
+        />
+        <span className="text-slate-500 text-sm ml-auto">{calls.length} calls</span>
+      </div>
+
+      {/* Table */}
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center h-32 gap-3">
+            <Spinner /><span className="text-slate-400">Loading...</span>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-700 bg-slate-800/80">
+                  {['Employee', 'Distributor', 'Direction', 'Duration', 'Date', 'Topics', 'Status'].map(h => (
+                    <th key={h} className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase tracking-wide">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {calls.map(call => (
+                  <React.Fragment key={call.id}>
+                    <tr
+                      onClick={() => toggle(call.id)}
+                      className={`border-b border-slate-800 hover:bg-slate-700/40 cursor-pointer transition-colors ${expanded === call.id ? 'bg-slate-700/30' : ''}`}
+                    >
+                      <td className="py-3 px-4 text-slate-200 font-medium">{call.employee_name}</td>
+                      <td className="py-3 px-4 text-slate-300">{call.distributor_name}</td>
+                      <td className="py-3 px-4"><DirectionPill direction={call.direction} /></td>
+                      <td className="py-3 px-4 text-slate-400">{fmtDuration(call.duration_seconds)}</td>
+                      <td className="py-3 px-4 text-slate-400 whitespace-nowrap">{fmtDate(call.recorded_at)}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-wrap gap-1">
+                          {(call.topics || []).slice(0, 2).map((t, i) => (
+                            <span key={i} className="px-1.5 py-0.5 bg-slate-700 text-slate-300 rounded text-xs">{t}</span>
+                          ))}
+                          {(call.topics || []).length > 2 && (
+                            <span className="text-slate-500 text-xs">+{call.topics.length - 2}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4"><FlagBadge flagged={call.flagged} reason={call.flag_reason} /></td>
+                    </tr>
+                    {expanded === call.id && (
+                      <tr className="border-b border-slate-700">
+                        <td colSpan={7} className="bg-slate-900/60 px-6 py-5">
+                          <ExpandedCallDetail call={call} />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+            {calls.length === 0 && (
+              <p className="text-slate-500 text-center py-12">No calls match your filters.</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ExpandedCallDetail({ call }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 fade-in">
+      <div className="space-y-4">
+        {call.flagged && (
+          <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-3 text-sm text-red-300">
+            ⚑ <strong>Flagged:</strong> {call.flag_reason}
+          </div>
+        )}
+        {call.summary ? (
+          <div>
+            <h4 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">Summary</h4>
+            <p className="text-slate-200 text-sm leading-relaxed">{call.summary}</p>
+          </div>
+        ) : (
+          <p className="text-slate-500 text-sm italic">No summary available</p>
+        )}
+        {call.topics?.length > 0 && (
+          <div>
+            <h4 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">Topics</h4>
+            <div className="flex flex-wrap gap-1.5">
+              {call.topics.map((t, i) => (
+                <span key={i} className="px-2.5 py-1 bg-indigo-900/50 text-indigo-300 border border-indigo-700/40 rounded-full text-xs">{t}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        {call.action_items?.length > 0 && (
+          <div>
+            <h4 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">Action Items</h4>
+            <ul className="space-y-1">
+              {call.action_items.map((a, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                  <span className="text-indigo-400 mt-0.5 shrink-0">◆</span>{a}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div>
+        <h4 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">Transcript</h4>
+        {call.transcript ? (
+          <div className="bg-slate-950/60 border border-slate-700 rounded-lg p-3 text-slate-300 text-sm leading-relaxed h-48 overflow-y-auto scrollbar-hide">
+            {call.transcript}
+          </div>
+        ) : (
+          <div className="bg-slate-950/60 border border-slate-700 rounded-lg p-3 text-slate-500 text-sm italic h-20 flex items-center justify-center">
+            No transcript available
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Upload Tab ────────────────────────────────────────────────────────────────
+
+function UploadTab() {
+  const [dragging, setDragging] = useState(false);
+  const [file, setFile] = useState(null);
+  const [form, setForm] = useState({ employee_name: '', distributor_name: '', direction: 'Outbound', recorded_at: '' });
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const fileInput = useRef();
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f) setFile(f);
+  };
+
+  const handleUpload = async () => {
+    if (!form.employee_name || !form.distributor_name || !form.direction) {
+      setError('Please fill in all required fields.');
+      return;
+    }
+    setError('');
+    setUploading(true);
+    setResult(null);
+
+    try {
+      const fd = new FormData();
+      if (file) fd.append('audio', file);
+      fd.append('employee_name', form.employee_name);
+      fd.append('distributor_name', form.distributor_name);
+      fd.append('direction', form.direction);
+      fd.append('recorded_at', form.recorded_at || new Date().toISOString());
+
+      setProgress('Uploading call record...');
+      const res = await fetch(`${API}/calls/upload`, { method: 'POST', body: fd });
+      const call = await res.json();
+      if (!res.ok) throw new Error(call.error || 'Upload failed');
+
+      setProgress('Processing with AI... (this may take a moment)');
+
+      // Poll for completion
+      let finalCall = call;
+      if (file) {
+        for (let i = 0; i < 30; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const check = await fetch(`${API}/calls/${call.id}`).then(r => r.json());
+          if (check.summary) { finalCall = check; break; }
+        }
+      }
+
+      setResult(finalCall);
+      setProgress('');
+      setFile(null);
+      setForm({ employee_name: '', distributor_name: '', direction: 'Outbound', recorded_at: '' });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+      setProgress('');
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6 fade-in">
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-5">
+        <h2 className="text-slate-100 font-semibold text-lg">Upload Call Recording</h2>
+
+        {/* Drop zone */}
+        <div
+          onDragOver={e => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInput.current?.click()}
+          className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${dragging ? 'border-indigo-400 bg-indigo-900/20' : 'border-slate-600 hover:border-slate-500'}`}
+        >
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".mp3,.wav,.m4a,.ogg,.webm"
+            className="hidden"
+            onChange={e => setFile(e.target.files[0])}
+          />
+          {file ? (
+            <div>
+              <p className="text-emerald-400 font-medium">✓ {file.name}</p>
+              <p className="text-slate-500 text-sm mt-1">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-4xl mb-2">🎙️</p>
+              <p className="text-slate-300 font-medium">Drop audio file here or click to browse</p>
+              <p className="text-slate-500 text-sm mt-1">MP3, WAV, M4A, OGG, WEBM — max 100MB</p>
+            </div>
+          )}
+        </div>
+
+        {/* Form fields */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-slate-400 text-sm mb-1">Employee Name *</label>
+            <input
+              type="text"
+              value={form.employee_name}
+              onChange={e => setForm(f => ({ ...f, employee_name: e.target.value }))}
+              placeholder="e.g. Usman Khan"
+              className="w-full bg-slate-900 border border-slate-600 text-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-slate-400 text-sm mb-1">Distributor Name *</label>
+            <input
+              type="text"
+              value={form.distributor_name}
+              onChange={e => setForm(f => ({ ...f, distributor_name: e.target.value }))}
+              placeholder="e.g. Ahmed Textile Mills"
+              className="w-full bg-slate-900 border border-slate-600 text-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-slate-400 text-sm mb-1">Direction *</label>
+            <select
+              value={form.direction}
+              onChange={e => setForm(f => ({ ...f, direction: e.target.value }))}
+              className="w-full bg-slate-900 border border-slate-600 text-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
+            >
+              <option>Inbound</option>
+              <option>Outbound</option>
+              <option>Missed</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-slate-400 text-sm mb-1">Date & Time</label>
+            <input
+              type="datetime-local"
+              value={form.recorded_at}
+              onChange={e => setForm(f => ({ ...f, recorded_at: e.target.value }))}
+              className="w-full bg-slate-900 border border-slate-600 text-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+        </div>
+
+        {error && <p className="text-red-400 text-sm bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{error}</p>}
+
+        {progress && (
+          <div className="flex items-center gap-3 text-slate-300 text-sm bg-slate-900/50 rounded-lg px-4 py-3">
+            <Spinner />{progress}
+          </div>
+        )}
+
+        <button
+          onClick={handleUpload}
+          disabled={uploading}
+          className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors"
+        >
+          {uploading ? 'Processing...' : file ? 'Upload & Analyse' : 'Save Call Record'}
+        </button>
+      </div>
+
+      {/* Result */}
+      {result && (
+        <div className="bg-slate-800/50 border border-emerald-700/40 rounded-xl p-6 space-y-4 fade-in">
+          <div className="flex items-center gap-2">
+            <span className="text-emerald-400 text-xl">✓</span>
+            <h3 className="text-emerald-300 font-semibold">Call Saved Successfully</h3>
+          </div>
+          {result.summary && (
+            <div>
+              <h4 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">AI Summary</h4>
+              <p className="text-slate-200 text-sm leading-relaxed">{result.summary}</p>
+            </div>
+          )}
+          {result.topics?.length > 0 && (
+            <div>
+              <h4 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">Topics Detected</h4>
+              <div className="flex flex-wrap gap-2">
+                {result.topics.map((t, i) => (
+                  <span key={i} className="px-2.5 py-1 bg-indigo-900/50 text-indigo-300 border border-indigo-700/40 rounded-full text-xs">{t}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {result.action_items?.length > 0 && (
+            <div>
+              <h4 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">Action Items</h4>
+              <ul className="space-y-1">
+                {result.action_items.map((a, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                    <span className="text-indigo-400 mt-0.5 shrink-0">◆</span>{a}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {result.flagged && (
+            <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-3 text-sm text-red-300">
+              ⚑ <strong>Flagged:</strong> {result.flag_reason}
+            </div>
+          )}
+          {!result.summary && (
+            <p className="text-slate-400 text-sm italic">
+              AI analysis in progress. Check the Call Log in a moment.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Settings Tab ──────────────────────────────────────────────────────────────
+
+function SettingsTab() {
+  const [calls, setCalls] = useState(0);
+  useEffect(() => {
+    fetch(`${API}/stats`).then(r => r.json()).then(s => setCalls(s.total_calls || 0)).catch(() => {});
+  }, []);
+
+  const avgCostPerCall = 0.004; // rough estimate: ~30s Whisper + 500 tokens Haiku
+  const estimated = (calls * avgCostPerCall).toFixed(2);
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6 fade-in">
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-4">
+        <h2 className="text-slate-100 font-semibold text-lg">Intellicon Integration</h2>
+        <p className="text-slate-400 text-sm">Connect your Intellicon account to pull call logs automatically.</p>
+        <div>
+          <label className="block text-slate-400 text-sm mb-1">Intellicon API Key</label>
+          <input type="password" placeholder="ik_live_xxxxxxxxxxxx" readOnly
+            className="w-full bg-slate-900 border border-slate-600 text-slate-500 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
+          <p className="text-slate-500 text-xs mt-1">Add INTELLICON_API_KEY to your .env file</p>
+        </div>
+        <div>
+          <label className="block text-slate-400 text-sm mb-1">Webhook URL (receive from Intellicon)</label>
+          <div className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-400 font-mono">
+            http://your-server/api/webhook/intellicon
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-4">
+        <h2 className="text-slate-100 font-semibold text-lg">Nayatel SIP Trunk</h2>
+        <p className="text-slate-400 text-sm">Configure your Nayatel SIP trunk for automatic call recording ingestion.</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-slate-400 text-sm mb-1">SIP Host</label>
+            <input type="text" placeholder="sip.nayatel.com" readOnly
+              className="w-full bg-slate-900 border border-slate-600 text-slate-500 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
+          </div>
+          <div>
+            <label className="block text-slate-400 text-sm mb-1">SIP Port</label>
+            <input type="text" placeholder="5060" readOnly
+              className="w-full bg-slate-900 border border-slate-600 text-slate-500 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
+          </div>
+          <div>
+            <label className="block text-slate-400 text-sm mb-1">Username</label>
+            <input type="text" placeholder="your_sip_username" readOnly
+              className="w-full bg-slate-900 border border-slate-600 text-slate-500 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
+          </div>
+          <div>
+            <label className="block text-slate-400 text-sm mb-1">Password</label>
+            <input type="password" placeholder="••••••••" readOnly
+              className="w-full bg-slate-900 border border-slate-600 text-slate-500 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
+          </div>
+        </div>
+        <p className="text-slate-500 text-xs">Add NAYATEL_SIP_HOST, NAYATEL_SIP_PORT, NAYATEL_SIP_USER, NAYATEL_SIP_PASS to .env</p>
+      </div>
+
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-4">
+        <h2 className="text-slate-100 font-semibold text-lg">AI Cost Calculator</h2>
+        <p className="text-slate-400 text-sm">Estimated API costs based on your current usage.</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-slate-900/60 rounded-lg p-4">
+            <p className="text-slate-400 text-xs uppercase tracking-wide">Total Calls Processed</p>
+            <p className="text-slate-100 text-2xl font-bold mt-1">{calls}</p>
+          </div>
+          <div className="bg-slate-900/60 rounded-lg p-4">
+            <p className="text-slate-400 text-xs uppercase tracking-wide">Est. AI Cost (USD)</p>
+            <p className="text-indigo-300 text-2xl font-bold mt-1">${estimated}</p>
+          </div>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-700">
+              <th className="text-left py-2 text-slate-400 text-xs">Service</th>
+              <th className="text-left py-2 text-slate-400 text-xs">Model</th>
+              <th className="text-right py-2 text-slate-400 text-xs">Est. per call</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-slate-800">
+              <td className="py-2 text-slate-300">Transcription</td>
+              <td className="py-2 text-slate-400">Groq Whisper Large v3</td>
+              <td className="py-2 text-right text-slate-300">~$0.001</td>
+            </tr>
+            <tr className="border-b border-slate-800">
+              <td className="py-2 text-slate-300">Summarisation</td>
+              <td className="py-2 text-slate-400">Claude Haiku 4.5</td>
+              <td className="py-2 text-right text-slate-300">~$0.003</td>
+            </tr>
+            <tr>
+              <td className="py-2 text-slate-100 font-semibold">Total</td>
+              <td></td>
+              <td className="py-2 text-right text-indigo-300 font-semibold">~$0.004</td>
+            </tr>
+          </tbody>
+        </table>
+        <div className="bg-slate-900/40 rounded-lg p-3 text-slate-400 text-xs">
+          💡 At current rates, processing 1,000 calls per month costs approximately <strong className="text-slate-200">$4 USD (≈ PKR 1,100)</strong>.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── App Shell ─────────────────────────────────────────────────────────────────
+
+const TABS = [
+  { id: 'dashboard', label: 'Dashboard', icon: '◈' },
+  { id: 'log', label: 'Call Log', icon: '≡' },
+  { id: 'upload', label: 'Upload', icon: '↑' },
+  { id: 'settings', label: 'Settings', icon: '⚙' },
+];
+
+function App() {
+  const [tab, setTab] = useState('dashboard');
+
+  return (
+    <div className="min-h-screen bg-slate-950">
+      {/* Header */}
+      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">C</div>
+            <span className="text-slate-100 font-bold text-lg tracking-tight">CallSync</span>
+            <span className="text-slate-500 text-xs hidden sm:block">by DiamondFoam</span>
+          </div>
+          <nav className="flex items-center gap-1">
+            {TABS.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  tab === t.id
+                    ? 'bg-indigo-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                <span className="text-base leading-none">{t.icon}</span>
+                <span className="hidden sm:inline">{t.label}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
+      </header>
+
+      {/* Main */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {tab === 'dashboard' && <DashboardTab onNavigate={setTab} />}
+        {tab === 'log' && <CallLogTab />}
+        {tab === 'upload' && <UploadTab />}
+        {tab === 'settings' && <SettingsTab />}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
