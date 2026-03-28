@@ -32,17 +32,16 @@ class IntelliconClient {
   async login() {
     // Try every combination of endpoint + payload format
     const attempts = [
-      // Most likely for Intellicon CX
-      { endpoint: '/apis/auth/login',     payload: { email: this.email, password: this.password } },
-      { endpoint: '/apis/auth/login',     payload: { username: this.email, password: this.password } },
-      { endpoint: '/cx9/api/auth/login',  payload: { email: this.email, password: this.password } },
-      { endpoint: '/cx9/api/auth/login',  payload: { username: this.email, password: this.password } },
-      { endpoint: '/api/v1/auth/login',   payload: { email: this.email, password: this.password } },
-      { endpoint: '/api/auth/login',      payload: { email: this.email, password: this.password } },
-      { endpoint: '/api/auth/login',      payload: { username: this.email, password: this.password } },
-      { endpoint: '/auth/login',          payload: { email: this.email, password: this.password } },
-      { endpoint: '/login',               payload: { email: this.email, password: this.password } },
-      { endpoint: '/user/login',          payload: { email: this.email, password: this.password } },
+      // /intellicon/ prefix — confirmed from login page URL
+      { endpoint: '/intellicon/apis/auth/login',    payload: { email: this.email, password: this.password } },
+      { endpoint: '/intellicon/apis/auth/login',    payload: { username: this.email, password: this.password } },
+      { endpoint: '/intellicon/api/auth/login',     payload: { email: this.email, password: this.password } },
+      { endpoint: '/intellicon/api/auth/login',     payload: { username: this.email, password: this.password } },
+      { endpoint: '/intellicon/auth/login',         payload: { email: this.email, password: this.password } },
+      { endpoint: '/intellicon/auth/login',         payload: { username: this.email, password: this.password } },
+      // Without prefix — fallback
+      { endpoint: '/apis/auth/login',               payload: { email: this.email, password: this.password } },
+      { endpoint: '/api/auth/login',                payload: { email: this.email, password: this.password } },
     ];
 
     const details = [];
@@ -96,20 +95,20 @@ class IntelliconClient {
 
     // Strategy 1: Raw JSON string in URL (as confirmed by user)
     const strategies = [
-      // Exact URL as given by user — axios will NOT encode params passed as string in URL
+      // With /intellicon/ prefix — confirmed from login URL
+      `/intellicon/apis/report/call_center?filter=${filterJson}&offset=0`,
+      `/intellicon/apis/report/call_center?filter=${encodeURIComponent(filterJson)}&offset=0`,
+      // Without prefix — fallback
       `/apis/report/call_center?filter=${filterJson}&offset=0`,
-      // URL-encoded version
       `/apis/report/call_center?filter=${encodeURIComponent(filterJson)}&offset=0`,
-      // Via axios params (axios encodes automatically)
-      null, // handled separately below
+      null, // axios params
     ];
 
     for (let i = 0; i < strategies.length; i++) {
       try {
         let res;
-        if (i === 2) {
-          // Use axios params option — axios will encode the values
-          res = await this.client.get('/apis/report/call_center', {
+        if (i === 4) {
+          res = await this.client.get('/intellicon/apis/report/call_center', {
             params: { filter: filterJson, offset: 0 }
           });
         } else {
