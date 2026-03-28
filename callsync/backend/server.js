@@ -225,6 +225,17 @@ async function startIntelliconListener() {
 
 // ── Seed Endpoint ─────────────────────────────────────────────────────────────
 
+// Shows Railway's outbound IP — give this to your IT admin to whitelist
+app.get('/api/myip', async (req, res) => {
+  try {
+    const axios = require('axios');
+    const r = await axios.get('https://api.ipify.org?format=json', { timeout: 5000 });
+    res.json({ outbound_ip: r.data.ip, note: 'Whitelist this IP on diamondgroup.contegris.com firewall' });
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
 app.get('/api/seed', (req, res) => {
   try {
     const db = getDb();
