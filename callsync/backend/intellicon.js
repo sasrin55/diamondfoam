@@ -30,54 +30,63 @@ class IntelliconClient {
   }
 
   async login() {
-    const endpoints = [
-      '/apis/auth/login',
-      '/cx9/api/auth/login',
-      '/api/auth/login',
-      '/auth/login',
+    // Try every combination of endpoint + payload format
+    const attempts = [
+      // Most likely for Intellicon CX
+      { endpoint: '/apis/auth/login',     payload: { email: this.email, password: this.password } },
+      { endpoint: '/apis/auth/login',     payload: { username: this.email, password: this.password } },
+      { endpoint: '/cx9/api/auth/login',  payload: { email: this.email, password: this.password } },
+      { endpoint: '/cx9/api/auth/login',  payload: { username: this.email, password: this.password } },
+      { endpoint: '/api/v1/auth/login',   payload: { email: this.email, password: this.password } },
+      { endpoint: '/api/auth/login',      payload: { email: this.email, password: this.password } },
+      { endpoint: '/api/auth/login',      payload: { username: this.email, password: this.password } },
+      { endpoint: '/auth/login',          payload: { email: this.email, password: this.password } },
+      { endpoint: '/login',               payload: { email: this.email, password: this.password } },
+      { endpoint: '/user/login',          payload: { email: this.email, password: this.password } },
     ];
 
-    const payload = { email: this.email, password: this.password };
     const details = [];
 
-    for (const endpoint of endpoints) {
+    for (const { endpoint, payload } of attempts) {
       try {
-        console.log(`[Intellicon] Trying login at ${endpoint}...`);
+        console.log(`[Intellicon] Trying POST ${endpoint} with payload keys: ${Object.keys(payload).join(',')}`);
         const res = await this.client.post(endpoint, payload);
 
-        // Log cookies received
         const cookies = await this.cookieJar.getCookies(this.baseUrl);
-        console.log(`[Intellicon] Login ${endpoint} -> status ${res.status}, cookies: ${cookies.map(c => c.key).join(', ')}`);
-        console.log(`[Intellicon] Login response keys: ${Object.keys(res.data || {}).join(', ')}`);
+        console.log(`[Intellicon] ${endpoint} -> status ${res.status}, cookies: [${cookies.map(c => c.key).join(', ')}]`);
+        console.log(`[Intellicon] Response body keys: ${Object.keys(res.data || {}).join(', ')}`);
+        console.log(`[Intellicon] Response body: ${JSON.stringify(res.data).slice(0, 300)}`);
 
-        // Accept any 2xx
         if (res.status >= 200 && res.status < 300) {
-          if (res.data?.token) {
-            this.client.defaults.headers['Authorization'] = `Bearer ${res.data.token}`;
-            console.log('[Intellicon] Bearer token set from login response');
-          }
-          if (res.data?.accessToken) {
-            this.client.defaults.headers['Authorization'] = `Bearer ${res.data.accessToken}`;
-          }
+          if (res.data?.token)       this.client.defaults.headers['Authorization'] = `Bearer ${res.data.token}`;
+          if (res.data?.accessToken) this.client.defaults.headers['Authorization'] = `Bearer ${res.data.accessToken}`;
+          if (res.data?.data?.token) this.client.defaults.headers['Authorization'] = `Bearer ${res.data.data.token}`;
           this.loggedIn = true;
           this.lastLoginEndpoint = endpoint;
-          return { success: true, endpoint, responseKeys: Object.keys(res.data || {}), cookies: cookies.map(c => c.key) };
+          return {
+            success: true, endpoint,
+            payloadUsed: Object.keys(payload),
+            responseKeys: Object.keys(res.data || {}),
+            cookies: cookies.map(c => c.key)
+          };
         }
 
-        details.push({ endpoint, status: res.status });
+        details.push({ endpoint, payload: Object.keys(payload), status: res.status });
       } catch (err) {
         const status = err.response?.status;
         const body = err.response?.data;
-        console.log(`[Intellicon] Login ${endpoint} failed: ${status || err.message}`, body ? JSON.stringify(body).slice(0, 200) : '');
-        details.push({ endpoint, status, error: err.message, body: JSON.stringify(body || '').slice(0, 200) });
+        const errMsg = `${status || err.code || err.message}`;
+        console.log(`[Intellicon] ${endpoint} failed: ${errMsg} | body: ${JSON.stringify(body || '').slice(0, 200)}`);
+        details.push({ endpoint, payload: Object.keys(payload), status, error: errMsg, body: JSON.stringify(body || '').slice(0, 150) });
 
-        if (status === 401 || status === 403) {
+        // 401/403 with credentials error = wrong password, stop immediately
+        if ((status === 401 || status === 403) && body && (JSON.stringify(body).toLowerCase().includes('password') || JSON.stringify(body).toLowerCase().includes('invalid'))) {
           return { success: false, error: 'Invalid credentials', details };
         }
       }
     }
 
-    return { success: false, error: 'Could not reach any login endpoint', details };
+    return { success: false, error: 'Could not authenticate with any endpoint', details };
   }
 
   // Raw call to the exact confirmed endpoint — tries multiple filter encoding strategies
