@@ -32,7 +32,25 @@ function initSchema() {
       flagged INTEGER DEFAULT 0,
       flag_reason TEXT,
       created_at TEXT DEFAULT (datetime('now'))
-    )
+    );
+
+    CREATE TABLE IF NOT EXISTS issue_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      resolution TEXT,
+      status TEXT DEFAULT 'open' CHECK(status IN ('open', 'in_progress', 'resolved')),
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS call_issue_links (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+      issue_type_id INTEGER NOT NULL REFERENCES issue_types(id) ON DELETE CASCADE,
+      details TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 }
 

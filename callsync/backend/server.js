@@ -22,6 +22,7 @@ app.use(express.static(path.join(__dirname, '../frontend')));
 // Routes
 app.use('/api/calls', require('./routes/calls'));
 app.use('/api/stats', require('./routes/stats'));
+app.use('/api/issues', require('./routes/issues'));
 
 // Seed endpoint — 20 realistic dummy calls
 app.get('/api/seed', (req, res) => {
