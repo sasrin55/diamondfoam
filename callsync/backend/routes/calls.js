@@ -3,7 +3,10 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { getDb } = require('../database');
+const {
+  getDb, insertCall, updateCallTranscript, updateCallSummary,
+  getCall, getAllCalls, serializeCall
+} = require('../database');
 
 // Multer storage config
 const storage = multer.diskStorage({
@@ -28,30 +31,16 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ storage, fileFilter, limits: { fileSize: 100 * 1024 * 1024 } });
 
-// Helper: parse JSON fields safely
-function parseJsonField(val, fallback = []) {
-  if (Array.isArray(val)) return val;
-  try { return JSON.parse(val) || fallback; } catch { return fallback; }
-}
-
-// Helper: serialize a row for API response
-function serializeCall(row) {
-  if (!row) return null;
-  return {
-    ...row,
-    topics: parseJsonField(row.topics),
-    action_items: parseJsonField(row.action_items),
-    flagged: row.flagged === 1 || row.flagged === true
-  };
-}
-
 // POST /api/calls/upload
 router.post('/upload', upload.single('audio'), async (req, res) => {
   try {
-    const { employee_name, distributor_name, direction, duration_seconds, recorded_at } = req.body;
+    const {
+      employee_name, distributor_name, direction,
+      duration_seconds, recorded_at, cli, did
+    } = req.body;
 
-    if (!employee_name || !distributor_name || !direction) {
-      return res.status(400).json({ error: 'employee_name, distributor_name, and direction are required' });
+    if (!direction) {
+      return res.status(400).json({ error: 'direction is required' });
     }
 
     const validDirections = ['Inbound', 'Outbound', 'Missed'];
@@ -59,33 +48,38 @@ router.post('/upload', upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: 'direction must be Inbound, Outbound, or Missed' });
     }
 
-    const db = getDb();
     const audioFilePath = req.file ? req.file.path : null;
 
-    const stmt = db.prepare(`
-      INSERT INTO calls (employee_name, distributor_name, direction, duration_seconds, recorded_at, audio_file_path)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    const result = stmt.run(
-      employee_name,
-      distributor_name,
+    const id = insertCall({
+      employee_name: employee_name || null,
+      distributor_name: distributor_name || null,
       direction,
-      parseInt(duration_seconds) || 0,
-      recorded_at || new Date().toISOString(),
-      audioFilePath
-    );
+      duration_seconds: parseInt(duration_seconds) || 0,
+      recorded_at: recorded_at || new Date().toISOString(),
+      audio_file_path: audioFilePath,
+      cli: cli || null,
+      did: did || null,
+      sync_status: 'pending'
+    });
 
-    const call = db.prepare('SELECT * FROM calls WHERE id = ?').get(result.lastInsertRowid);
+    if (id) {
+      // Update audio_file_path via raw update since insertCall doesn't set it
+      if (audioFilePath) {
+        getDb().prepare('UPDATE calls SET audio_file_path = ? WHERE id = ?').run(audioFilePath, id);
+      }
+    }
 
-    // Kick off transcription + summarisation async (non-blocking)
+    const call = getCall(id);
+
+    // Kick off pipeline async
     if (audioFilePath) {
-      transcribeAndSummarise(call.id).catch(err => {
-        console.error(`Background processing failed for call ${call.id}:`, err.message);
+      const { processCall } = require('../server');
+      processCall(call.id).catch(err => {
+        console.error(`Background pipeline failed for call ${call.id}:`, err.message);
       });
     }
 
-    res.status(201).json(serializeCall(call));
+    res.status(201).json(call);
   } catch (err) {
     console.error('Upload error:', err);
     res.status(500).json({ error: err.message });
@@ -95,13 +89,12 @@ router.post('/upload', upload.single('audio'), async (req, res) => {
 // POST /api/calls/transcribe/:id
 router.post('/transcribe/:id', async (req, res) => {
   try {
-    const db = getDb();
-    const call = db.prepare('SELECT * FROM calls WHERE id = ?').get(req.params.id);
+    const call = getCall(req.params.id);
     if (!call) return res.status(404).json({ error: 'Call not found' });
     if (!call.audio_file_path) return res.status(400).json({ error: 'No audio file for this call' });
 
     const transcript = await runTranscription(call.audio_file_path);
-    db.prepare('UPDATE calls SET transcript = ? WHERE id = ?').run(transcript, call.id);
+    updateCallTranscript(call.id, transcript);
 
     res.json({ id: call.id, transcript });
   } catch (err) {
@@ -113,27 +106,26 @@ router.post('/transcribe/:id', async (req, res) => {
 // POST /api/calls/summarise/:id
 router.post('/summarise/:id', async (req, res) => {
   try {
-    const db = getDb();
-    const call = db.prepare('SELECT * FROM calls WHERE id = ?').get(req.params.id);
+    const call = getCall(req.params.id);
     if (!call) return res.status(404).json({ error: 'Call not found' });
-    if (!call.transcript) return res.status(400).json({ error: 'No transcript available. Transcribe first.' });
+    if (!call.transcript) return res.status(400).json({ error: 'No transcript. Transcribe first.' });
 
-    const analysis = await runSummarisation(call.transcript);
+    const analysis = await runSummarisation(call.transcript, {
+      agentName: call.employee_name,
+      direction: call.direction,
+      duration: call.duration_seconds
+    });
 
-    db.prepare(`
-      UPDATE calls SET summary = ?, topics = ?, action_items = ?, flagged = ?, flag_reason = ?
-      WHERE id = ?
-    `).run(
+    updateCallSummary(
+      call.id,
       analysis.summary,
-      JSON.stringify(analysis.topics || []),
-      JSON.stringify(analysis.action_items || []),
-      analysis.flagged ? 1 : 0,
-      analysis.flag_reason || null,
-      call.id
+      analysis.topics,
+      analysis.action_items,
+      analysis.flagged,
+      analysis.flag_reason
     );
 
-    const updated = db.prepare('SELECT * FROM calls WHERE id = ?').get(call.id);
-    res.json(serializeCall(updated));
+    res.json(getCall(call.id));
   } catch (err) {
     console.error('Summarise error:', err);
     res.status(500).json({ error: err.message });
@@ -143,33 +135,7 @@ router.post('/summarise/:id', async (req, res) => {
 // GET /api/calls
 router.get('/', (req, res) => {
   try {
-    const db = getDb();
-    const { employee, direction, flagged, search } = req.query;
-
-    let query = 'SELECT * FROM calls WHERE 1=1';
-    const params = [];
-
-    if (employee) {
-      query += ' AND employee_name = ?';
-      params.push(employee);
-    }
-    if (direction) {
-      query += ' AND direction = ?';
-      params.push(direction);
-    }
-    if (flagged === 'true' || flagged === '1') {
-      query += ' AND flagged = 1';
-    }
-    if (search) {
-      query += ' AND (employee_name LIKE ? OR distributor_name LIKE ? OR transcript LIKE ? OR summary LIKE ?)';
-      const like = `%${search}%`;
-      params.push(like, like, like, like);
-    }
-
-    query += ' ORDER BY created_at DESC';
-
-    const rows = db.prepare(query).all(...params);
-    res.json(rows.map(serializeCall));
+    res.json(getAllCalls(req.query));
   } catch (err) {
     console.error('List calls error:', err);
     res.status(500).json({ error: err.message });
@@ -179,38 +145,15 @@ router.get('/', (req, res) => {
 // GET /api/calls/:id
 router.get('/:id', (req, res) => {
   try {
-    const db = getDb();
-    const call = db.prepare('SELECT * FROM calls WHERE id = ?').get(req.params.id);
+    const call = getCall(req.params.id);
     if (!call) return res.status(404).json({ error: 'Call not found' });
-    res.json(serializeCall(call));
+    res.json(call);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Internal helpers
-
-async function transcribeAndSummarise(callId) {
-  const db = getDb();
-  const call = db.prepare('SELECT * FROM calls WHERE id = ?').get(callId);
-  if (!call || !call.audio_file_path) return;
-
-  const transcript = await runTranscription(call.audio_file_path);
-  db.prepare('UPDATE calls SET transcript = ? WHERE id = ?').run(transcript, callId);
-
-  const analysis = await runSummarisation(transcript);
-  db.prepare(`
-    UPDATE calls SET summary = ?, topics = ?, action_items = ?, flagged = ?, flag_reason = ?
-    WHERE id = ?
-  `).run(
-    analysis.summary,
-    JSON.stringify(analysis.topics || []),
-    JSON.stringify(analysis.action_items || []),
-    analysis.flagged ? 1 : 0,
-    analysis.flag_reason || null,
-    callId
-  );
-}
+// ── Internal helpers ──────────────────────────────────────────────────────────
 
 async function runTranscription(filePath) {
   const Groq = require('groq-sdk');
@@ -219,13 +162,14 @@ async function runTranscription(filePath) {
   const transcription = await groq.audio.transcriptions.create({
     file: fs.createReadStream(filePath),
     model: 'whisper-large-v3',
-    language: 'ur'
+    language: 'ur',
+    response_format: 'text'
   });
 
-  return transcription.text;
+  return typeof transcription === 'string' ? transcription : transcription.text;
 }
 
-async function runSummarisation(transcript) {
+async function runSummarisation(transcript, callMeta = {}) {
   const Anthropic = require('@anthropic-ai/sdk');
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -234,29 +178,34 @@ async function runSummarisation(transcript) {
     max_tokens: 1024,
     messages: [{
       role: 'user',
-      content: `You are analysing a Pakistani B2B sales call between an employee and a distributor.
+      content: `You are analysing a Pakistani B2B sales call.
+Agent: ${callMeta.agentName || 'Unknown'}
+Direction: ${callMeta.direction || 'Unknown'}
+Duration: ${callMeta.duration || 0} seconds
 
-Transcript: ${transcript}
+Transcript:
+${transcript}
 
-Return a JSON object with exactly these fields:
+Return ONLY a valid JSON object with these exact fields:
 {
   "summary": "2-3 sentence summary in English",
-  "topics": ["topic1", "topic2"],
+  "topics": ["topic1", "topic2", "topic3"],
   "action_items": ["action1", "action2"],
-  "flagged": true/false,
-  "flag_reason": "reason if flagged, else null"
+  "flagged": true or false,
+  "flag_reason": "reason if flagged, null if not"
 }
 
-Flag the call if: complaint raised, competitor mentioned, payment issue, delivery problem, or urgent follow-up needed.
+Flag if: complaint, competitor mentioned, payment issue, delivery problem, angry customer, urgent follow-up needed.
 
-Return only valid JSON, no other text.`
+Return only JSON. No markdown. No explanation.`
     }]
   });
 
   const raw = message.content[0].text.trim();
-  // Strip markdown code fences if present
   const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
   return JSON.parse(cleaned);
 }
 
 module.exports = router;
+module.exports.runTranscription = runTranscription;
+module.exports.runSummarisation = runSummarisation;
