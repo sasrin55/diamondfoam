@@ -150,6 +150,79 @@ function RecentCallsTable({ calls, onSelect }) {
   );
 }
 
+// ── Sync Bar ──────────────────────────────────────────────────────────────────
+
+function SyncBar({ onSyncComplete }) {
+  const [status, setStatus] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const fetchStatus = () => {
+    fetch(`${API}/intellicon/status`)
+      .then(r => r.json())
+      .then(setStatus)
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchStatus();
+    const t = setInterval(fetchStatus, 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  const runSync = async () => {
+    setSyncing(true);
+    setMsg('Connecting to Intellicon...');
+    try {
+      const res = await fetch(`${API}/intellicon/sync`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sync failed');
+      setMsg(`Synced ${data.synced} new calls (${data.skipped} skipped, ${data.failed} failed)`);
+      fetchStatus();
+      if (onSyncComplete) onSyncComplete();
+    } catch (err) {
+      setMsg(`Error: ${err.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const lastSyncTime = status?.lastSync?.synced_at
+    ? new Date(status.lastSync.synced_at).toLocaleString('en-PK', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : 'Never';
+
+  const configured = status?.configured;
+  const wsConnected = status?.wsConnected;
+
+  return (
+    <div className="bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-2">
+        <span className={`w-2.5 h-2.5 rounded-full ${wsConnected ? 'bg-emerald-400' : 'bg-slate-500'}`} title={wsConnected ? 'WebSocket connected' : 'WebSocket disconnected'} />
+        <span className="text-slate-300 text-sm font-medium">Intellicon</span>
+        {!configured && <span className="text-xs text-amber-400 bg-amber-900/30 px-2 py-0.5 rounded-full border border-amber-700/40">Not configured</span>}
+      </div>
+      <span className="text-slate-500 text-xs">Last sync: {lastSyncTime}</span>
+      {status?.lastSync && (
+        <span className="text-slate-500 text-xs">
+          +{status.lastSync.calls_synced ?? 0} synced · {status.lastSync.calls_skipped ?? 0} skipped
+        </span>
+      )}
+      <div className="ml-auto flex items-center gap-3">
+        {msg && (
+          <span className={`text-xs ${msg.startsWith('Error') ? 'text-red-400' : 'text-emerald-400'}`}>{msg}</span>
+        )}
+        <button
+          onClick={runSync}
+          disabled={syncing || !configured}
+          className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+        >
+          {syncing ? <><Spinner /> Syncing...</> : '⟳ Sync Now'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Dashboard Tab ─────────────────────────────────────────────────────────────
 
 function DashboardTab({ onNavigate }) {
@@ -158,7 +231,7 @@ function DashboardTab({ onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
 
-  useEffect(() => {
+  const loadData = () => {
     Promise.all([
       fetch(`${API}/stats`).then(r => r.json()),
       fetch(`${API}/calls`).then(r => r.json())
@@ -166,6 +239,12 @@ function DashboardTab({ onNavigate }) {
       setStats(s);
       setRecent(Array.isArray(c) ? c.slice(0, 10) : []);
     }).catch(console.error).finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadData();
+    const t = setInterval(loadData, 60000);
+    return () => clearInterval(t);
   }, []);
 
   if (loading) return (
@@ -176,11 +255,14 @@ function DashboardTab({ onNavigate }) {
 
   return (
     <div className="space-y-6 fade-in">
+      {/* Intellicon sync bar */}
+      <SyncBar onSyncComplete={loadData} />
+
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Calls" value={stats?.total_calls ?? 0} color="indigo" />
         <StatCard label="Avg Duration" value={fmtDuration(stats?.avg_duration_seconds)} color="emerald" />
-        <StatCard label="Distributors Reached" value={stats?.total_distributors ?? 0} sub={`${stats?.total_employees ?? 0} employees`} color="amber" />
+        <StatCard label="Today's Calls" value={stats?.calls_today ?? 0} sub={`${stats?.total_employees ?? 0} employees`} color="amber" />
         <StatCard label="Flagged Calls" value={stats?.flagged_calls ?? 0} sub="Need attention" color="red" />
       </div>
 
@@ -893,30 +975,100 @@ function IssuesTab() {
 
 function SettingsTab() {
   const [calls, setCalls] = useState(0);
+  const [syncStatus, setSyncStatus] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
+
   useEffect(() => {
     fetch(`${API}/stats`).then(r => r.json()).then(s => setCalls(s.total_calls || 0)).catch(() => {});
+    fetch(`${API}/intellicon/status`).then(r => r.json()).then(setSyncStatus).catch(() => {});
   }, []);
 
-  const avgCostPerCall = 0.004; // rough estimate: ~30s Whisper + 500 tokens Haiku
+  const runSync = async () => {
+    setSyncing(true); setSyncMsg('');
+    try {
+      const res = await fetch(`${API}/intellicon/sync`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setSyncMsg(`Done — ${data.synced} synced, ${data.skipped} skipped, ${data.failed} failed`);
+      fetch(`${API}/intellicon/status`).then(r => r.json()).then(setSyncStatus).catch(() => {});
+    } catch (err) {
+      setSyncMsg(`Error: ${err.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const avgCostPerCall = 0.004;
   const estimated = (calls * avgCostPerCall).toFixed(2);
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 fade-in">
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-4">
-        <h2 className="text-slate-100 font-semibold text-lg">Intellicon Integration</h2>
-        <p className="text-slate-400 text-sm">Connect your Intellicon account to pull call logs automatically.</p>
-        <div>
-          <label className="block text-slate-400 text-sm mb-1">Intellicon API Key</label>
-          <input type="password" placeholder="ik_live_xxxxxxxxxxxx" readOnly
-            className="w-full bg-slate-900 border border-slate-600 text-slate-500 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
-          <p className="text-slate-500 text-xs mt-1">Add INTELLICON_API_KEY to your .env file</p>
-        </div>
-        <div>
-          <label className="block text-slate-400 text-sm mb-1">Webhook URL (receive from Intellicon)</label>
-          <div className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-400 font-mono">
-            http://your-server/api/webhook/intellicon
+        <div className="flex items-center justify-between">
+          <h2 className="text-slate-100 font-semibold text-lg">Intellicon Sync</h2>
+          <div className="flex items-center gap-2">
+            <span className={`w-2.5 h-2.5 rounded-full ${syncStatus?.wsConnected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+            <span className="text-slate-400 text-xs">{syncStatus?.wsConnected ? 'WebSocket live' : 'WebSocket offline'}</span>
           </div>
         </div>
+
+        {/* Config fields */}
+        <div className="grid grid-cols-1 gap-3">
+          <div>
+            <label className="block text-slate-400 text-sm mb-1">Base URL</label>
+            <div className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-400 font-mono">
+              {process.env?.INTELLICON_BASE_URL || 'INTELLICON_BASE_URL — set in Railway Variables'}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-slate-400 text-sm mb-1">Email</label>
+              <div className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-500">
+                {syncStatus?.configured ? '••••••••••@•••••••' : 'INTELLICON_EMAIL — not set'}
+              </div>
+            </div>
+            <div>
+              <label className="block text-slate-400 text-sm mb-1">Password</label>
+              <div className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-500">
+                {syncStatus?.configured ? '••••••••' : 'INTELLICON_PASSWORD — not set'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-slate-500 text-xs">Add INTELLICON_BASE_URL, INTELLICON_EMAIL, INTELLICON_PASSWORD in Railway → Variables</p>
+
+        {/* Manual sync */}
+        <div className="flex items-center gap-3 pt-1">
+          <button
+            onClick={runSync}
+            disabled={syncing || !syncStatus?.configured}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          >
+            {syncing ? <><Spinner /> Syncing...</> : '⟳ Sync Now'}
+          </button>
+          {syncMsg && <span className={`text-sm ${syncMsg.startsWith('Error') ? 'text-red-400' : 'text-emerald-400'}`}>{syncMsg}</span>}
+        </div>
+
+        {/* Recent sync logs */}
+        {syncStatus?.recentSyncs?.length > 0 && (
+          <div>
+            <h3 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">Recent Sync Logs</h3>
+            <div className="space-y-1.5">
+              {syncStatus.recentSyncs.map((s, i) => (
+                <div key={i} className="flex items-center gap-3 text-xs bg-slate-900/50 rounded-lg px-3 py-2">
+                  <span className={`w-1.5 h-1.5 rounded-full ${s.status === 'ok' ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                  <span className="text-slate-400">{new Date(s.synced_at).toLocaleString('en-PK', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="text-slate-300">+{s.calls_synced} synced</span>
+                  <span className="text-slate-500">{s.calls_skipped} skipped</span>
+                  {s.calls_failed > 0 && <span className="text-red-400">{s.calls_failed} failed</span>}
+                  <span className={`ml-auto px-1.5 py-0.5 rounded text-xs ${s.status === 'ok' ? 'bg-emerald-900/40 text-emerald-400' : 'bg-red-900/40 text-red-400'}`}>{s.status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-4">
