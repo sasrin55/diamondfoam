@@ -322,6 +322,10 @@ function DashboardTab({ onNavigate }) {
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-slate-100 text-sm font-semibold">
+                            {call.employee_name || 'Unknown Agent'}
+                          </span>
+                          <span className="text-slate-500 text-xs">·</span>
+                          <span className="text-slate-300 text-xs">
                             {call.customer_name || call.distributor_name || 'Unknown Customer'}
                           </span>
                           {call.order_number && (
@@ -329,8 +333,6 @@ function DashboardTab({ onNavigate }) {
                               Order #{call.order_number}
                             </span>
                           )}
-                          <span className="text-slate-500 text-xs">·</span>
-                          <span className="text-slate-400 text-xs">{call.employee_name || 'Unknown Agent'}</span>
                           <DirectionPill direction={call.direction} />
                         </div>
                         {call.details && (
