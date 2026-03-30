@@ -312,15 +312,20 @@ router.post('/recording', upload.single('audio'), async (req, res) => {
     const call = db.prepare('SELECT * FROM calls WHERE interaction_id = ?').get(interaction_id);
     if (!call) return res.status(404).json({ error: 'Call not found. Import metadata first.' });
 
-    db.prepare('UPDATE calls SET audio_file_path = ? WHERE id = ?').run(req.file.path, call.id);
+    db.prepare('UPDATE calls SET audio_file_path = ?, sync_status = ? WHERE id = ?').run(
+      req.file.path,
+      req.body.defer === 'true' ? 'bookmarklet' : 'pending',
+      call.id
+    );
 
-    // Run AI pipeline in background
-    const { processCall } = require('../server');
-    processCall(call.id).catch(err => {
-      console.error(`[Bookmarklet] Pipeline failed for call ${call.id}:`, err.message);
-    });
+    if (req.body.defer !== 'true') {
+      const { processCall } = require('../server');
+      processCall(call.id).catch(err => {
+        console.error(`[Bookmarklet] Pipeline failed for call ${call.id}:`, err.message);
+      });
+    }
 
-    res.json({ success: true, call_id: call.id, message: 'Recording received, AI processing started' });
+    res.json({ success: true, call_id: call.id, deferred: req.body.defer === 'true', message: req.body.defer === 'true' ? 'Recording saved, AI deferred' : 'Recording received, AI processing started' });
   } catch (err) {
     console.error('Recording upload error:', err);
     res.status(500).json({ error: err.message });
