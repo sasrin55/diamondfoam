@@ -21,7 +21,7 @@ router.post('/analyze', async (req, res) => {
     }
 
     const callList = calls.map(c =>
-      `Call ID ${c.id} (${c.employee_name} → ${c.distributor_name}):\n${c.transcript}`
+      `Call ID ${c.id} (Agent: ${c.employee_name || 'Unknown'} | Customer: ${c.distributor_name || 'Unknown'}):\n${c.transcript}`
     ).join('\n\n---\n\n');
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -55,8 +55,8 @@ Return a JSON object with exactly this structure:
       "suggested_resolution": "One sentence suggesting how to resolve this type of issue",
       "call_ids": [1, 2, 3],
       "details_per_call": {
-        "1": "Brief note on how this issue appeared in call 1",
-        "2": "Brief note for call 2"
+        "1": "Customer: [name or Unknown] | Order: [number or N/A] | [1-2 sentence description of the specific issue in this call]",
+        "2": "Customer: [name or Unknown] | Order: [number or N/A] | [description]"
       }
     }
   ]
@@ -137,11 +137,12 @@ router.get('/', (req, res) => {
       ORDER BY call_count DESC, it.created_at ASC
     `).all();
 
-    // Attach linked calls for each issue
+    // Linked calls with customer/order details
     const getLinks = db.prepare(`
       SELECT
         c.id, c.employee_name, c.distributor_name, c.recorded_at,
         c.direction, c.summary, c.flagged,
+        c.customer_name, c.order_number,
         cil.details
       FROM call_issue_links cil
       JOIN calls c ON c.id = cil.call_id
@@ -149,8 +150,22 @@ router.get('/', (req, res) => {
       ORDER BY c.recorded_at DESC
     `);
 
+    // Per-issue agent breakdown
+    const getAgentBreakdown = db.prepare(`
+      SELECT
+        c.employee_name AS agent_name,
+        COUNT(*) AS call_count,
+        MAX(c.recorded_at) AS last_seen
+      FROM call_issue_links cil
+      JOIN calls c ON c.id = cil.call_id
+      WHERE cil.issue_type_id = ? AND c.employee_name IS NOT NULL
+      GROUP BY c.employee_name
+      ORDER BY call_count DESC
+    `);
+
     const result = issues.map(issue => ({
       ...issue,
+      agents: getAgentBreakdown.all(issue.id),
       calls: getLinks.all(issue.id)
     }));
 

@@ -122,7 +122,9 @@ router.post('/summarise/:id', async (req, res) => {
       analysis.topics,
       analysis.action_items,
       analysis.flagged,
-      analysis.flag_reason
+      analysis.flag_reason,
+      analysis.customer_name,
+      analysis.order_number
     );
 
     res.json(getCall(call.id));
@@ -192,7 +194,9 @@ Return ONLY a valid JSON object with these exact fields:
   "topics": ["topic1", "topic2", "topic3"],
   "action_items": ["action1", "action2"],
   "flagged": true or false,
-  "flag_reason": "reason if flagged, null if not"
+  "flag_reason": "reason if flagged, null if not",
+  "customer_name": "full name of the customer/caller if mentioned or inferable, null if not found",
+  "order_number": "any order, invoice, reference, or complaint number mentioned, null if not found"
 }
 
 Flag if: complaint, competitor mentioned, payment issue, delivery problem, angry customer, urgent follow-up needed.

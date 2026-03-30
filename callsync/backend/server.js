@@ -30,6 +30,7 @@ app.use('/api/calls', require('./routes/calls'));
 app.use('/api/stats', require('./routes/stats'));
 app.use('/api/intellicon', require('./routes/intellicon'));
 app.use('/api/issues', require('./routes/issues'));
+app.use('/api/agents', require('./routes/agents'));
 
 // ── Pipeline ─────────────────────────────────────────────────────────────────
 
@@ -63,7 +64,9 @@ async function processCall(callId) {
       analysis.topics,
       analysis.action_items,
       analysis.flagged,
-      analysis.flag_reason
+      analysis.flag_reason,
+      analysis.customer_name,
+      analysis.order_number
     );
     console.log(`[Pipeline] Summary saved for call ${callId}`);
 

@@ -235,16 +235,19 @@ function SyncBar({ onSyncComplete }) {
 function DashboardTab({ onNavigate }) {
   const [stats, setStats] = useState(null);
   const [recent, setRecent] = useState([]);
+  const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
 
   const loadData = () => {
     Promise.all([
       fetch(`${API}/stats`).then(r => r.json()),
-      fetch(`${API}/calls`).then(r => r.json())
-    ]).then(([s, c]) => {
+      fetch(`${API}/calls`).then(r => r.json()),
+      fetch(`${API}/issues`).then(r => r.json()),
+    ]).then(([s, c, iss]) => {
       setStats(s);
       setRecent(Array.isArray(c) ? c.slice(0, 10) : []);
+      setIssues(Array.isArray(iss) ? iss : []);
     }).catch(console.error).finally(() => setLoading(false));
   };
 
@@ -260,27 +263,94 @@ function DashboardTab({ onNavigate }) {
     </div>
   );
 
+  const openIssues = issues.filter(i => i.status === 'open').length;
+  const agentsWithIssues = new Set(issues.flatMap(i => (i.agents || []).map(a => a.agent_name))).size;
+
   return (
     <div className="space-y-6 fade-in">
-      {/* Intellicon sync bar */}
       <SyncBar onSyncComplete={loadData} />
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Calls" value={stats?.total_calls ?? 0} color="indigo" />
-        <StatCard label="Avg Duration" value={fmtDuration(stats?.avg_duration_seconds)} color="emerald" />
-        <StatCard label="Today's Calls" value={stats?.calls_today ?? 0} sub={`${stats?.total_employees ?? 0} employees`} color="amber" />
+        <StatCard label="Today's Calls" value={stats?.calls_today ?? 0} sub={`${stats?.total_employees ?? 0} agents`} color="emerald" />
+        <StatCard label="Open Issues" value={openIssues} sub={`${issues.length} categories total`} color="amber" />
         <StatCard label="Flagged Calls" value={stats?.flagged_calls ?? 0} sub="Need attention" color="red" />
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
-          <BarChart title="Calls by Employee" data={stats?.calls_by_employee} colorClass="bg-indigo-500" />
+      {/* Issues Feed */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-slate-100 font-semibold text-lg">Issues Feed</h2>
+          <button onClick={() => onNavigate('issues')} className="text-indigo-400 hover:text-indigo-300 text-sm transition-colors">
+            Manage issues →
+          </button>
         </div>
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
-          <BarChart title="Top Distributors" data={stats?.calls_by_distributor} colorClass="bg-emerald-500" />
-        </div>
+
+        {issues.length === 0 ? (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-10 text-center">
+            <p className="text-4xl mb-3">⚑</p>
+            <p className="text-slate-300 font-medium">No issues analysed yet</p>
+            <p className="text-slate-500 text-sm mt-1 mb-4">Import calls and run AI analysis to see issues here.</p>
+            <button onClick={() => onNavigate('issues')} className="text-indigo-400 hover:text-indigo-300 text-sm underline">
+              Go to Issues tab →
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {issues.map(issue => (
+              <div key={issue.id} className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+                {/* Issue header */}
+                <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-700/50 bg-slate-800/80">
+                  <span className="text-slate-100 font-semibold">{issue.name}</span>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${STATUS_STYLES[issue.status]}`}>
+                    {STATUS_LABELS[issue.status]}
+                  </span>
+                  <div className="ml-auto flex items-center gap-3 text-slate-500 text-xs">
+                    <span>{issue.call_count} call{issue.call_count !== 1 ? 's' : ''}</span>
+                    {(issue.agents || []).length > 0 && (
+                      <span>{(issue.agents || []).map(a => a.agent_name).join(', ')}</span>
+                    )}
+                  </div>
+                </div>
+                {/* Per-call rows */}
+                {(issue.calls || []).length === 0 ? (
+                  <p className="text-slate-500 text-sm px-5 py-3 italic">No call details available — re-run analysis.</p>
+                ) : (
+                  (issue.calls || []).map(call => (
+                    <div key={call.id} className="px-5 py-3 border-b border-slate-800/80 last:border-0 flex items-start gap-4">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-slate-100 text-sm font-semibold">
+                            {call.customer_name || call.distributor_name || 'Unknown Customer'}
+                          </span>
+                          {call.order_number && (
+                            <span className="text-xs px-1.5 py-0.5 bg-slate-700 text-amber-300 rounded font-mono border border-slate-600">
+                              Order #{call.order_number}
+                            </span>
+                          )}
+                          <span className="text-slate-500 text-xs">·</span>
+                          <span className="text-slate-400 text-xs">{call.employee_name || 'Unknown Agent'}</span>
+                          <DirectionPill direction={call.direction} />
+                        </div>
+                        {call.details && (
+                          <p className="text-amber-300/90 text-xs leading-relaxed">{call.details}</p>
+                        )}
+                        {!call.details && call.summary && (
+                          <p className="text-slate-400 text-xs leading-relaxed line-clamp-2">{call.summary}</p>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0 space-y-1">
+                        <p className="text-slate-500 text-xs whitespace-nowrap">{fmtDate(call.recorded_at)}</p>
+                        {call.flagged ? <FlagBadge flagged={true} /> : null}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Recent calls */}
@@ -785,7 +855,7 @@ function IssuesTab() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeMsg, setAnalyzeMsg] = useState('');
   const [expanded, setExpanded] = useState(null);
-  const [editing, setEditing] = useState({}); // { [id]: { resolution, status } }
+  const [editing, setEditing] = useState({});
 
   const fetchIssues = () => {
     setLoading(true);
@@ -799,8 +869,7 @@ function IssuesTab() {
   useEffect(() => { fetchIssues(); }, []);
 
   const runAnalyze = async () => {
-    setAnalyzing(true);
-    setAnalyzeMsg('');
+    setAnalyzing(true); setAnalyzeMsg('');
     try {
       const res = await fetch(`${API}/issues/analyze`, { method: 'POST' });
       const data = await res.json();
@@ -822,13 +891,11 @@ function IssuesTab() {
       status: patch.status !== undefined ? patch.status : issue.status,
     };
     const res = await fetch(`${API}/issues/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
     if (res.ok) {
       const updated = await res.json();
-      setIssues(prev => prev.map(i => i.id === id ? { ...i, ...updated, calls: i.calls } : i));
+      setIssues(prev => prev.map(i => i.id === id ? { ...i, ...updated, calls: i.calls, agents: i.agents } : i));
       setEditing(prev => { const e = { ...prev }; delete e[id]; return e; });
     }
   };
@@ -837,19 +904,24 @@ function IssuesTab() {
     setEditing(prev => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: value } }));
   };
 
+  // Derived stats
+  const openCount = issues.filter(i => i.status === 'open').length;
+  const agentIssueCounts = {};
+  issues.forEach(issue => (issue.agents || []).forEach(a => {
+    agentIssueCounts[a.agent_name] = (agentIssueCounts[a.agent_name] || 0) + a.call_count;
+  }));
+  const mostAffectedAgent = Object.entries(agentIssueCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
+
   return (
     <div className="space-y-4 fade-in">
-      {/* Header bar */}
+      {/* Header */}
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 flex flex-wrap items-center gap-3">
         <div className="flex-1">
           <h2 className="text-slate-100 font-semibold">Issue Tracker</h2>
-          <p className="text-slate-500 text-sm mt-0.5">AI groups call transcripts into recurring issue categories. Run analysis any time new calls are added.</p>
+          <p className="text-slate-500 text-sm mt-0.5">AI clusters call transcripts into recurring issues with customer, order, and agent details.</p>
         </div>
-        <button
-          onClick={runAnalyze}
-          disabled={analyzing}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
-        >
+        <button onClick={runAnalyze} disabled={analyzing}
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors">
           {analyzing ? <><Spinner /> Analysing...</> : '⟳ Re-analyse Calls'}
         </button>
         {analyzeMsg && (
@@ -859,19 +931,29 @@ function IssuesTab() {
         )}
       </div>
 
+      {/* Stat cards */}
+      {!loading && issues.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard label="Issue Categories" value={issues.length} color="indigo" />
+          <StatCard label="Open Issues" value={openCount} sub={`${issues.length - openCount} resolved/in progress`} color="red" />
+          <StatCard label="Most Affected Agent" value={mostAffectedAgent} sub={`${agentIssueCounts[mostAffectedAgent] ?? 0} issue calls`} color="amber" />
+          <StatCard label="Most Common Issue" value={issues[0]?.name ?? '—'} sub={`${issues[0]?.call_count ?? 0} calls`} color="red" />
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center h-40 gap-3"><Spinner /><span className="text-slate-400">Loading issues...</span></div>
       ) : issues.length === 0 ? (
         <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-12 text-center">
           <p className="text-slate-400 text-lg font-medium">No issues analysed yet</p>
-          <p className="text-slate-500 text-sm mt-2">Click "Re-analyse Calls" to let AI cluster your call transcripts into issue categories.</p>
+          <p className="text-slate-500 text-sm mt-2">Click "Re-analyse Calls" above to let AI cluster your call transcripts into issue categories.</p>
         </div>
       ) : (
         <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-700 bg-slate-800/80">
-                {['Issue Category', 'Calls', 'Description', 'Resolution', 'Status', ''].map(h => (
+                {['Issue Category', 'Calls', 'Agents Involved', 'Resolution', 'Status', ''].map(h => (
                   <th key={h} className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -885,15 +967,11 @@ function IssuesTab() {
 
                 return (
                   <React.Fragment key={issue.id}>
-                    <tr
-                      className={`border-b border-slate-800 hover:bg-slate-700/20 transition-colors ${expanded === issue.id ? 'bg-slate-700/20' : ''}`}
-                    >
+                    <tr className={`border-b border-slate-800 hover:bg-slate-700/20 transition-colors ${expanded === issue.id ? 'bg-slate-700/20' : ''}`}>
                       <td className="py-3 px-4">
-                        <button
-                          onClick={() => setExpanded(prev => prev === issue.id ? null : issue.id)}
-                          className="text-slate-100 font-semibold hover:text-indigo-300 text-left transition-colors"
-                        >
-                          {issue.name}
+                        <button onClick={() => setExpanded(prev => prev === issue.id ? null : issue.id)}
+                          className="text-slate-100 font-semibold hover:text-indigo-300 text-left transition-colors flex items-center gap-1.5">
+                          <span>{expanded === issue.id ? '▾' : '▸'}</span> {issue.name}
                         </button>
                       </td>
                       <td className="py-3 px-4">
@@ -901,22 +979,26 @@ function IssuesTab() {
                           {issue.call_count}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-slate-400 text-xs max-w-xs">{issue.description || '—'}</td>
-                      <td className="py-3 px-4 min-w-[200px]">
-                        <input
-                          type="text"
-                          value={currentResolution}
+                      <td className="py-3 px-4 text-slate-300 text-xs">
+                        {(issue.agents || []).length > 0
+                          ? (issue.agents || []).map(a => (
+                              <span key={a.agent_name} className="inline-flex items-center gap-1 mr-1.5 mb-0.5 px-1.5 py-0.5 bg-slate-700/60 rounded text-slate-300 border border-slate-600/40">
+                                {a.agent_name} <span className="text-indigo-400 font-bold">{a.call_count}</span>
+                              </span>
+                            ))
+                          : <span className="text-slate-500">—</span>
+                        }
+                      </td>
+                      <td className="py-3 px-4 min-w-[180px]">
+                        <input type="text" value={currentResolution}
                           onChange={e => setField(issue.id, 'resolution', e.target.value)}
                           placeholder="Add resolution..."
                           className="w-full bg-slate-900 border border-slate-600 text-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500"
                         />
                       </td>
                       <td className="py-3 px-4">
-                        <select
-                          value={currentStatus}
-                          onChange={e => setField(issue.id, 'status', e.target.value)}
-                          className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border bg-transparent focus:outline-none cursor-pointer ${STATUS_STYLES[currentStatus]}`}
-                        >
+                        <select value={currentStatus} onChange={e => setField(issue.id, 'status', e.target.value)}
+                          className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border bg-transparent focus:outline-none cursor-pointer ${STATUS_STYLES[currentStatus]}`}>
                           <option value="open">Open</option>
                           <option value="in_progress">In Progress</option>
                           <option value="resolved">Resolved</option>
@@ -924,10 +1006,8 @@ function IssuesTab() {
                       </td>
                       <td className="py-3 px-4">
                         {isDirty && (
-                          <button
-                            onClick={() => saveIssue(issue.id)}
-                            className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg transition-colors font-medium"
-                          >
+                          <button onClick={() => saveIssue(issue.id)}
+                            className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
                             Save
                           </button>
                         )}
@@ -936,33 +1016,74 @@ function IssuesTab() {
 
                     {expanded === issue.id && (
                       <tr className="border-b border-slate-700">
-                        <td colSpan={6} className="bg-slate-900/60 px-6 py-4">
-                          <div className="space-y-3 fade-in">
-                            <h4 className="text-slate-400 text-xs uppercase tracking-wide font-semibold">
-                              Calls linked to this issue ({issue.calls?.length || 0})
-                            </h4>
-                            {issue.calls?.length > 0 ? (
-                              <div className="space-y-2">
-                                {issue.calls.map(call => (
-                                  <div key={call.id} className="bg-slate-800/60 border border-slate-700 rounded-lg p-3">
-                                    <div className="flex items-center gap-3 mb-1.5">
-                                      <span className="text-slate-200 text-sm font-medium">{call.employee_name} → {call.distributor_name}</span>
-                                      <DirectionPill direction={call.direction} />
-                                      <span className="text-slate-500 text-xs">{fmtDate(call.recorded_at)}</span>
-                                      {call.flagged ? <FlagBadge flagged={true} reason="" /> : null}
-                                    </div>
-                                    {call.details && (
-                                      <p className="text-amber-300/80 text-xs mb-1.5 italic">"{call.details}"</p>
-                                    )}
-                                    {call.summary && (
-                                      <p className="text-slate-400 text-xs leading-relaxed">{call.summary}</p>
-                                    )}
-                                  </div>
-                                ))}
+                        <td colSpan={6} className="bg-slate-900/60 px-6 py-5">
+                          <div className="space-y-5 fade-in">
+                            {/* Agent breakdown */}
+                            {(issue.agents || []).length > 0 && (
+                              <div>
+                                <h4 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">Agent Breakdown</h4>
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b border-slate-700">
+                                      {['Agent', 'Calls with this Issue', 'Last Seen'].map(h => (
+                                        <th key={h} className="text-left py-2 px-3 text-slate-500 font-medium text-xs">{h}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {issue.agents.map(a => (
+                                      <tr key={a.agent_name} className="border-b border-slate-800">
+                                        <td className="py-2 px-3 text-slate-200 font-medium">{a.agent_name}</td>
+                                        <td className="py-2 px-3">
+                                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-900/50 text-amber-300 font-bold text-xs border border-amber-700/40">
+                                            {a.call_count}
+                                          </span>
+                                        </td>
+                                        <td className="py-2 px-3 text-slate-400 text-xs">{fmtDate(a.last_seen)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
                               </div>
-                            ) : (
-                              <p className="text-slate-500 text-sm italic">No calls linked.</p>
                             )}
+
+                            {/* Linked calls */}
+                            <div>
+                              <h4 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">
+                                Calls ({issue.calls?.length || 0})
+                              </h4>
+                              {issue.calls?.length > 0 ? (
+                                <div className="space-y-2">
+                                  {issue.calls.map(call => (
+                                    <div key={call.id} className="bg-slate-800/60 border border-slate-700 rounded-lg p-3 space-y-1.5">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-slate-100 text-sm font-semibold">
+                                          {call.customer_name || call.distributor_name || 'Unknown Customer'}
+                                        </span>
+                                        {call.order_number && (
+                                          <span className="text-xs px-1.5 py-0.5 bg-slate-700 text-amber-300 rounded font-mono border border-slate-600">
+                                            Order #{call.order_number}
+                                          </span>
+                                        )}
+                                        <span className="text-slate-500 text-xs">·</span>
+                                        <span className="text-slate-300 text-xs">{call.employee_name}</span>
+                                        <DirectionPill direction={call.direction} />
+                                        <span className="text-slate-500 text-xs ml-auto">{fmtDate(call.recorded_at)}</span>
+                                        {call.flagged ? <FlagBadge flagged={true} reason="" /> : null}
+                                      </div>
+                                      {call.details && (
+                                        <p className="text-amber-300/80 text-xs leading-relaxed">{call.details}</p>
+                                      )}
+                                      {!call.details && call.summary && (
+                                        <p className="text-slate-400 text-xs leading-relaxed">{call.summary}</p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-slate-500 text-sm italic">No calls linked — re-run analysis.</p>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -1103,7 +1224,7 @@ function SettingsTab() {
           <p className="text-amber-400/80 text-xs mt-2">If it says "Ready, change the date..." — change the date filter so Intellicon reloads the data and it will capture automatically.</p>
           <div className="pt-2">
             <a
-              href={`javascript:(function(){var API='https://diamondfoam-production.up.railway.app/api';var el=document.createElement('div');el.style='position:fixed;top:16px;right:16px;background:%231e293b;color:%23e2e8f0;padding:16px 20px;border-radius:12px;z-index:2147483647;font-family:sans-serif;font-size:13px;min-width:320px;border:1px solid %23334155;box-shadow:0 4px 24px rgba(0,0,0,.7);line-height:1.7';document.body.appendChild(el);var hooked=true,origFetch=window.fetch,origXHR=window.XMLHttpRequest;function log(m){el.innerHTML='<b style="color:%2394a3b8">CallSync Sync</b><br>'+m;}function unhook(){hooked=false;window.fetch=origFetch;window.XMLHttpRequest=origXHR;}function isCallUrl(u){return u.includes('call_center')||u.includes('report/call')||u.includes('/interactions')||u.includes('/cdr')||u.includes('callHistory')||u.includes('call_history');}function parseDur(s){if(!s||s==='N/A')return 0;var p=s.split(':');if(p.length===3)return parseInt(p[0])*3600+parseInt(p[1])*60+parseInt(p[2]);if(p.length===2)return parseInt(p[0])*60+parseInt(p[1]);return parseInt(s)||0;}function parseDt(s){if(!s||s==='N/A'||s==='0000-00-00 00:00:00')return new Date().toISOString();var d=new Date(s.replace(' ','T'));if(!isNaN(d))return d.toISOString();var m=String(s).match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})/);if(m)return new Date(m[3],parseInt(m[2])-1,parseInt(m[1])).toISOString();return new Date().toISOString();}function mapDir(s){if(!s)return 'Inbound';var l=s.toLowerCase();if(l.includes('out'))return 'Outbound';if(l.includes('miss')||l.includes('abandon'))return 'Missed';return 'Inbound';}function getAudioUrl(cell){if(!cell)return '';var ae=cell.querySelector('audio');if(ae){var s=ae.src||ae.currentSrc||ae.getAttribute('src')||ae.getAttribute('data-src')||'';if(s&&!s.startsWith('data:')&&!s.startsWith('blob:blob:'))return s;}var src2=cell.querySelector('audio source');if(src2){var s=src2.src||src2.getAttribute('src')||'';if(s)return s;}var le=cell.querySelector('a[href]');if(le&&/\\.(mp3|wav|ogg|m4a)/i.test(le.href))return le.href;var de=cell.querySelector('[data-src],[data-url],[data-audio],[data-href],[data-file]');if(de){var s=de.getAttribute('data-src')||de.getAttribute('data-url')||de.getAttribute('data-audio')||de.getAttribute('data-href')||de.getAttribute('data-file')||'';if(s)return s;}var btns=cell.querySelectorAll('button,i,[class*=play],[class*=audio],[class*=record]');for(var bi=0;bi<btns.length;bi++){var b=btns[bi];var oc=b.getAttribute('onclick')||b.getAttribute('ng-click')||b.getAttribute('@click')||b.getAttribute('v-on:click')||'';var mm=oc.match(/['"]((?:https?:\\/\\/|\\/)\\S+?\\.(?:mp3|wav|ogg))['"]/i);if(mm)return mm[1];}return '';}async function uploadRec(recUrl,iid){var ar=await origFetch(recUrl,{credentials:'include'});if(!ar.ok)return false;var blob=await ar.blob();var fd=new FormData();fd.append('audio',blob,iid+'.mp3');fd.append('interaction_id',iid);await origFetch(API+'/calls/recording',{method:'POST',body:fd});return true;}async function sendCalls(calls){log('Importing '+calls.length+' calls...');var ir=await origFetch(API+'/calls/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({calls:calls})});var res=await ir.json();if(!ir.ok)throw new Error(res.error||'Import failed');if(!res.synced&&res.skipped===calls.length){log('\\u2713 All '+res.skipped+' calls already in CallSync.');setTimeout(function(){el.remove();},6000);return;}log(res.synced+' new calls saved. Getting recordings...');var done=0;for(var i=0;i<(res.newCalls||[]).length;i++){var nc=res.newCalls[i];try{var raw=calls.find(function(c){return(c.interactionId||c.interaction_id||c._id||c.id)==nc.interactionId;})||{};var uploaded=false;if(raw.recordingUrl){uploaded=await uploadRec(raw.recordingUrl,nc.interactionId);}if(!uploaded){var d=new Date(raw.createdAt||new Date().toISOString());var du='/intellicon/sounds/recording/'+d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+'/';var lr=await origFetch(du,{credentials:'include'});if(lr.ok){var html=await lr.text();var m=html.match(new RegExp('[\\\\w.-]*'+nc.interactionId+'[\\\\w.-]*\\\\.(?:mp3|wav|ogg)','i'));if(m)uploaded=await uploadRec(du+m[0],nc.interactionId);}}if(uploaded){done++;log(res.synced+' saved. Recordings: '+done+'/'+res.newCalls.length+'...');}}catch(e){console.warn('Rec error:',e);}}log('\\u2713 Done! '+res.synced+' new calls, '+done+' recordings. AI started.');setTimeout(function(){el.remove();},9000);}function handleData(text){try{var data=JSON.parse(text);var calls=Array.isArray(data)?data:(data.data||data.calls||data.records||data.interactions||data.result||[]);if(Array.isArray(calls)&&calls.length>0&&(calls[0].interactionId||calls[0].interaction_id||calls[0]._id||calls[0].id||calls[0].callId)){unhook();sendCalls(calls).catch(function(e){log('\\u274c '+e.message);setTimeout(function(){el.remove();},8000);});return true;}}catch(e){}return false;}window.fetch=async function(){var res=await origFetch.apply(this,arguments);var url=String(arguments[0]||'');if(hooked&&isCallUrl(url)){try{res.clone().text().then(function(t){handleData(t);});}catch(e){}}return res;};function HXR(){var xhr=new origXHR(),ou=xhr.open.bind(xhr),cu='';xhr.open=function(m,url){cu=url;return ou.apply(this,arguments);};xhr.addEventListener('load',function(){if(hooked&&isCallUrl(cu))handleData(xhr.responseText);});return xhr;}window.XMLHttpRequest=HXR;function scrapeTable(){var tbl=null,maxRows=0;document.querySelectorAll('table').forEach(function(t){var n=t.querySelectorAll('tbody tr').length;if(n>maxRows){maxRows=n;tbl=t;}});if(!tbl||maxRows===0)return null;var cols={};Array.from(tbl.querySelectorAll('thead th,thead td,tr:first-child th,tr:first-child td')).forEach(function(th,i){var h=th.textContent.trim().toLowerCase();if(h==='date')cols.date=i;else if(h==='interaction id')cols.id=i;else if(h==='did/dod')cols.did=i;else if(h==='cli/dst')cols.cli=i;else if(h==='direction')cols.direction=i;else if(h==='queue')cols.queue=i;else if(h==='agent(s)')cols.agent=i;else if(h==='duration')cols.duration=i;else if(h==='audio')cols.audio=i;});var ts=Date.now();var rows=Array.from(tbl.querySelectorAll('tbody tr'));var calls=rows.map(function(row,idx){var cells=row.querySelectorAll('td');function cv(k){var v=cols[k]!==undefined&&cells[cols[k]]?cells[cols[k]].textContent.trim():'';return v==='N/A'?'':v;}var iid=cv('id')||('dom_'+ts+'_'+idx);var recUrl=cols.audio!==undefined?getAudioUrl(cells[cols.audio]):null;return{interactionId:iid,createdAt:parseDt(cv('date')),did:cv('did'),cli:cv('cli'),direction:mapDir(cv('direction')),agentName:cv('agent')||null,queueName:cv('queue')||null,duration:parseDur(cv('duration')),recordingUrl:recUrl||undefined};}).filter(function(c){return c.interactionId;});return calls.length>0?calls:null;}var scraped=scrapeTable();if(scraped){var wa=scraped.filter(function(c){return c.recordingUrl;}).length;log('Found '+scraped.length+' calls'+(wa?' ('+wa+' with audio link)':'')+'. Importing...');unhook();sendCalls(scraped).catch(function(e){log('\\u274c '+e.message);setTimeout(function(){el.remove();},8000);});}else{log('Ready — waiting for Intellicon to load call data.');}setTimeout(function(){if(hooked){unhook();log('\\u274c Timed out.');setTimeout(function(){el.remove();},6000);}},90000);})()`}
+              href={`javascript:(function(){var API='https://diamondfoam-production.up.railway.app/api';var el=document.createElement('div');el.style='position:fixed;top:16px;right:16px;background:%231e293b;color:%23e2e8f0;padding:16px 20px;border-radius:12px;z-index:2147483647;font-family:sans-serif;font-size:13px;min-width:320px;border:1px solid %23334155;box-shadow:0 4px 24px rgba(0,0,0,.7);line-height:1.7';document.body.appendChild(el);var hooked=true,origFetch=window.fetch,origXHR=window.XMLHttpRequest;function log(m){el.innerHTML='<b style="color:%2394a3b8">CallSync Sync</b><br>'+m;}function unhook(){hooked=false;window.fetch=origFetch;window.XMLHttpRequest=origXHR;}function isCallUrl(u){return u.includes('call_center')||u.includes('report/call')||u.includes('/interactions')||u.includes('/cdr')||u.includes('callHistory')||u.includes('call_history');}function parseDur(s){if(!s||s==='N/A')return 0;var p=s.split(':');if(p.length===3)return parseInt(p[0])*3600+parseInt(p[1])*60+parseInt(p[2]);if(p.length===2)return parseInt(p[0])*60+parseInt(p[1]);return parseInt(s)||0;}function parseDt(s){if(!s||s==='N/A'||s==='0000-00-00 00:00:00')return new Date().toISOString();var d=new Date(s.replace(' ','T'));if(!isNaN(d))return d.toISOString();var m=String(s).match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})/);if(m)return new Date(m[3],parseInt(m[2])-1,parseInt(m[1])).toISOString();return new Date().toISOString();}function mapDir(s){if(!s)return 'Inbound';var l=s.toLowerCase();if(l.includes('out'))return 'Outbound';if(l.includes('miss')||l.includes('abandon'))return 'Missed';return 'Inbound';}function getAudioUrl(cell){if(!cell)return '';var ae=cell.querySelector('audio');if(ae){var s=ae.src||ae.currentSrc||ae.getAttribute('src')||ae.getAttribute('data-src')||'';if(s&&!s.startsWith('data:')&&!s.startsWith('blob:blob:'))return s;}var src2=cell.querySelector('audio source');if(src2){var s=src2.src||src2.getAttribute('src')||'';if(s)return s;}var le=cell.querySelector('a[href]');if(le&&/\\.(mp3|wav|ogg|m4a)/i.test(le.href))return le.href;var de=cell.querySelector('[data-src],[data-url],[data-audio],[data-href],[data-file]');if(de){var s=de.getAttribute('data-src')||de.getAttribute('data-url')||de.getAttribute('data-audio')||de.getAttribute('data-href')||de.getAttribute('data-file')||'';if(s)return s;}var btns=cell.querySelectorAll('button,i,[class*=play],[class*=audio],[class*=record]');for(var bi=0;bi<btns.length;bi++){var b=btns[bi];var oc=b.getAttribute('onclick')||b.getAttribute('ng-click')||b.getAttribute('@click')||b.getAttribute('v-on:click')||'';var mm=oc.match(/['"]((?:https?:\\/\\/|\\/)\\S+?\\.(?:mp3|wav|ogg))['"]/i);if(mm)return mm[1];}return '';}async function uploadRec(recUrl,iid){var ar=await origFetch(recUrl,{credentials:'include'});if(!ar.ok)return false;var blob=await ar.blob();var fd=new FormData();fd.append('audio',blob,iid+'.mp3');fd.append('interaction_id',iid);await origFetch(API+'/calls/recording',{method:'POST',body:fd});return true;}async function sendCalls(calls){log('Importing '+calls.length+' calls...');var ir=await origFetch(API+'/calls/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({calls:calls})});var res=await ir.json();if(!ir.ok)throw new Error(res.error||'Import failed');if(!res.synced&&res.skipped===calls.length){log('\\u2713 All '+res.skipped+' calls already in CallSync.');setTimeout(function(){el.remove();},6000);return;}log(res.synced+' new calls saved. Getting recordings...');var done=0;for(var i=0;i<(res.newCalls||[]).length;i++){var nc=res.newCalls[i];try{var raw=calls.find(function(c){return(c.interactionId||c.interaction_id||c._id||c.id)==nc.interactionId;})||{};var uploaded=false;if(raw.recordingUrl){uploaded=await uploadRec(raw.recordingUrl,nc.interactionId);}if(!uploaded){var d=new Date(raw.createdAt||new Date().toISOString());var du='/intellicon/sounds/recording/'+d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+'/';var lr=await origFetch(du,{credentials:'include'});if(lr.ok){var html=await lr.text();var m=html.match(new RegExp('[\\\\w.-]*'+nc.interactionId+'[\\\\w.-]*\\\\.(?:mp3|wav|ogg)','i'));if(m)uploaded=await uploadRec(du+m[0],nc.interactionId);}}if(uploaded){done++;log(res.synced+' saved. Recordings: '+done+'/'+res.newCalls.length+'...');}}catch(e){console.warn('Rec error:',e);}}log('\\u2713 Done! '+res.synced+' new calls, '+done+' recordings. AI started.');setTimeout(function(){el.remove();},9000);}function handleData(text){try{var data=JSON.parse(text);var calls=Array.isArray(data)?data:(data.data||data.calls||data.records||data.interactions||data.result||[]);if(Array.isArray(calls)&&calls.length>0&&(calls[0].interactionId||calls[0].interaction_id||calls[0]._id||calls[0].id||calls[0].callId)){unhook();sendCalls(calls).catch(function(e){log('\\u274c '+e.message);setTimeout(function(){el.remove();},8000);});return true;}}catch(e){}return false;}window.fetch=async function(){var res=await origFetch.apply(this,arguments);var url=String(arguments[0]||'');if(hooked&&isCallUrl(url)){try{res.clone().text().then(function(t){handleData(t);});}catch(e){}}return res;};function HXR(){var xhr=new origXHR(),ou=xhr.open.bind(xhr),cu='';xhr.open=function(m,url){cu=url;return ou.apply(this,arguments);};xhr.addEventListener('load',function(){if(hooked&&isCallUrl(cu))handleData(xhr.responseText);});return xhr;}window.XMLHttpRequest=HXR;function scrapeTable(){var tbl=null,maxRows=0;document.querySelectorAll('table').forEach(function(t){var n=t.querySelectorAll('tbody tr').length;if(n>maxRows){maxRows=n;tbl=t;}});if(!tbl||maxRows===0)return null;var cols={};Array.from(tbl.querySelectorAll('thead th,thead td,tr:first-child th,tr:first-child td')).forEach(function(th,i){var h=th.textContent.trim().toLowerCase();if(h==='date')cols.date=i;else if(h==='interaction id')cols.id=i;else if(h==='did/dod')cols.did=i;else if(h==='cli/dst')cols.cli=i;else if(h==='direction')cols.direction=i;else if(h==='queue')cols.queue=i;else if(h==='agent(s)')cols.agent=i;else if(h==='duration')cols.duration=i;else if(h==='audio')cols.audio=i;});var ts=Date.now();var rows=Array.from(tbl.querySelectorAll('tbody tr'));var calls=rows.map(function(row,idx){var cells=row.querySelectorAll('td');function cv(k){var v=cols[k]!==undefined&&cells[cols[k]]?cells[cols[k]].textContent.trim():'';return v==='N/A'?'':v;}var iid=cv('id')||('dom_'+ts+'_'+idx);var recUrl=cols.audio!==undefined?getAudioUrl(cells[cols.audio]):null;return{interactionId:iid,createdAt:parseDt(cv('date')),did:cv('did'),cli:cv('cli'),direction:mapDir(cv('direction')),agentName:cv('agent')||null,queueName:cv('queue')||null,duration:parseDur(cv('duration')),recordingUrl:recUrl||undefined};}).filter(function(c){return c.interactionId;});return calls.length>0?calls:null;}function findNextBtn(){var cands=Array.from(document.querySelectorAll('button,a,[role=button],[role=link]'));for(var i=0;i<cands.length;i++){var b=cands[i];var txt=b.textContent.trim();var lbl=b.getAttribute('aria-label')||'';var dis=b.disabled||b.hasAttribute('disabled')||b.classList.contains('disabled')||b.getAttribute('aria-disabled')==='true';if(dis)continue;if(/^[>»›]$/.test(txt)||/next/i.test(txt)||/next/i.test(lbl))return b;}return null;}function waitForChange(oldId,timeout){return new Promise(function(resolve){var elapsed=0;var iv=setInterval(function(){var pc=scrapeTable();if(pc&&pc[0]&&pc[0].interactionId!==oldId){clearInterval(iv);resolve(true);return;}elapsed+=300;if(elapsed>=timeout){clearInterval(iv);resolve(false);}},300);});}(async function(){var allCalls=[];var page=1;while(true){var pc=scrapeTable();if(!pc||pc.length===0)break;var existing=new Set(allCalls.map(function(c){return c.interactionId;}));var novel=pc.filter(function(c){return!existing.has(c.interactionId);});allCalls=allCalls.concat(novel);var nb=findNextBtn();if(!nb){if(page===1&&allCalls.length===0){log('Ready \\u2014 waiting for Intellicon to load call data.');}else{var wa=allCalls.filter(function(c){return c.recordingUrl;}).length;log('Collected '+allCalls.length+' calls'+(wa?' ('+wa+' with audio)':'')+'. Importing...');unhook();sendCalls(allCalls).catch(function(e){log('\\u274c '+e.message);setTimeout(function(){el.remove();},8000);});}return;}log('Page '+page+': '+allCalls.length+' collected. Loading next page...');var firstId=pc[0].interactionId;nb.click();var changed=await waitForChange(firstId,8000);if(!changed){var wa2=allCalls.filter(function(c){return c.recordingUrl;}).length;log('Collected '+allCalls.length+' calls'+(wa2?' ('+wa2+' with audio)':'')+'. Importing...');unhook();sendCalls(allCalls).catch(function(e){log('\\u274c '+e.message);setTimeout(function(){el.remove();},8000);});return;}page++;if(page>100)break;}})();setTimeout(function(){if(hooked){unhook();log('\\u274c Timed out.');setTimeout(function(){el.remove();},6000);}},90000);})()`}
               className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-5 py-2.5 rounded-lg cursor-grab active:cursor-grabbing select-none border-2 border-indigo-400"
               onClick={e => e.preventDefault()}
               draggable="true"
@@ -1190,14 +1311,133 @@ function SettingsTab() {
   );
 }
 
+// ── Agents Tab ────────────────────────────────────────────────────────────────
+
+function AgentsTab() {
+  const [agents, setAgents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API}/agents/issues`)
+      .then(r => r.json())
+      .then(data => setAgents(Array.isArray(data) ? data : []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const agentsWithIssues = agents.filter(a => a.issue_type_count > 0).length;
+
+  return (
+    <div className="space-y-4 fade-in">
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 gap-4">
+        <StatCard label="Total Agents" value={agents.length} color="indigo" />
+        <StatCard label="Agents with Issues" value={agentsWithIssues} sub="Based on AI analysis" color="amber" />
+      </div>
+
+      {/* Header */}
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+        <h2 className="text-slate-100 font-semibold">Agent Issue Breakdown</h2>
+        <p className="text-slate-500 text-sm mt-0.5">How many and which types of issues each agent has handled. Click a row to expand.</p>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center h-40 gap-3"><Spinner /><span className="text-slate-400">Loading agents...</span></div>
+      ) : agents.length === 0 ? (
+        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-12 text-center">
+          <p className="text-slate-400 font-medium">No agents found</p>
+          <p className="text-slate-500 text-sm mt-2">Import calls to see agent data here.</p>
+        </div>
+      ) : (
+        <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-700 bg-slate-800/80">
+                {['Agent', 'Total Calls', 'Issues Found', 'Most Common Issue'].map(h => (
+                  <th key={h} className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase tracking-wide">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {agents.map(agent => (
+                <React.Fragment key={agent.agent_name}>
+                  <tr
+                    onClick={() => setExpanded(prev => prev === agent.agent_name ? null : agent.agent_name)}
+                    className={`border-b border-slate-800 hover:bg-slate-700/30 cursor-pointer transition-colors ${expanded === agent.agent_name ? 'bg-slate-700/20' : ''}`}
+                  >
+                    <td className="py-3 px-4 text-slate-100 font-semibold flex items-center gap-2">
+                      <span>{expanded === agent.agent_name ? '▾' : '▸'}</span> {agent.agent_name}
+                    </td>
+                    <td className="py-3 px-4 text-slate-300">{agent.total_calls}</td>
+                    <td className="py-3 px-4">
+                      {agent.issue_type_count > 0 ? (
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-900/60 text-red-300 font-bold text-xs border border-red-700/40">
+                          {agent.issue_type_count}
+                        </span>
+                      ) : (
+                        <span className="text-emerald-400 text-xs font-medium">✓ Clean</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-slate-400 text-xs">{agent.issues?.[0]?.name ?? '—'}</td>
+                  </tr>
+                  {expanded === agent.agent_name && (
+                    <tr className="border-b border-slate-700">
+                      <td colSpan={4} className="bg-slate-900/60 px-6 py-4">
+                        {(agent.issues || []).length === 0 ? (
+                          <p className="text-slate-500 text-sm italic">No issues found for this agent.</p>
+                        ) : (
+                          <div className="fade-in">
+                            <h4 className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-2">Issue Breakdown</h4>
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-slate-700">
+                                  {['Issue', 'Calls', 'Status'].map(h => (
+                                    <th key={h} className="text-left py-2 px-3 text-slate-500 font-medium text-xs">{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {agent.issues.map(issue => (
+                                  <tr key={issue.id} className="border-b border-slate-800">
+                                    <td className="py-2 px-3 text-slate-200 font-medium">{issue.name}</td>
+                                    <td className="py-2 px-3">
+                                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-900/50 text-amber-300 font-bold text-xs border border-amber-700/40">
+                                        {issue.call_count}
+                                      </span>
+                                    </td>
+                                    <td className="py-2 px-3">
+                                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${STATUS_STYLES[issue.status]}`}>
+                                        {STATUS_LABELS[issue.status]}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── App Shell ─────────────────────────────────────────────────────────────────
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: '◈' },
-  { id: 'log', label: 'Call Log', icon: '≡' },
-  { id: 'issues', label: 'Issues', icon: '⚑' },
-  { id: 'upload', label: 'Upload', icon: '↑' },
-  { id: 'settings', label: 'Settings', icon: '⚙' },
+  { id: 'issues',    label: 'Issues',    icon: '⚑' },
+  { id: 'agents',    label: 'Agents',    icon: '◉' },
+  { id: 'log',       label: 'Call Log',  icon: '≡' },
+  { id: 'settings',  label: 'Settings',  icon: '⚙' },
 ];
 
 function App() {
@@ -1235,10 +1475,11 @@ function App() {
       {/* Main */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {tab === 'dashboard' && <DashboardTab onNavigate={setTab} />}
-        {tab === 'log' && <CallLogTab />}
-        {tab === 'issues' && <IssuesTab />}
-        {tab === 'upload' && <UploadTab />}
-        {tab === 'settings' && <SettingsTab />}
+        {tab === 'issues'    && <IssuesTab />}
+        {tab === 'agents'    && <AgentsTab />}
+        {tab === 'log'       && <CallLogTab />}
+        {tab === 'upload'    && <UploadTab />}
+        {tab === 'settings'  && <SettingsTab />}
       </main>
     </div>
   );

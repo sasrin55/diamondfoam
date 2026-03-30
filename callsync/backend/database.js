@@ -84,6 +84,8 @@ function initSchema() {
     ['did', 'TEXT'],
     ['queue_name', 'TEXT'],
     ['sync_status', "TEXT DEFAULT 'pending'"],
+    ['customer_name', 'TEXT'],
+    ['order_number', 'TEXT'],
   ];
   for (const [col, def] of newCols) {
     addColumnIfMissing('calls', col, def);
@@ -136,10 +138,11 @@ function updateCallTranscript(id, transcript) {
   getDb().prepare('UPDATE calls SET transcript = ? WHERE id = ?').run(transcript, id);
 }
 
-function updateCallSummary(id, summary, topics, actionItems, flagged, flagReason) {
+function updateCallSummary(id, summary, topics, actionItems, flagged, flagReason, customerName, orderNumber) {
   getDb().prepare(`
     UPDATE calls SET summary = ?, topics = ?, action_items = ?,
-    flagged = ?, flag_reason = ?, sync_status = 'complete'
+    flagged = ?, flag_reason = ?, customer_name = ?, order_number = ?,
+    sync_status = 'complete'
     WHERE id = ?
   `).run(
     summary,
@@ -147,6 +150,8 @@ function updateCallSummary(id, summary, topics, actionItems, flagged, flagReason
     JSON.stringify(actionItems || []),
     flagged ? 1 : 0,
     flagReason || null,
+    customerName || null,
+    orderNumber || null,
     id
   );
 }
