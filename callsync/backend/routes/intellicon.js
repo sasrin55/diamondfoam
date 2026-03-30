@@ -33,8 +33,9 @@ router.post('/sync', async (req, res) => {
       return res.status(401).json({ error: `Login failed: ${loginResult.error}`, details: loginResult.details });
     }
 
-    // Fetch calls
-    const { calls: rawCalls, firstRawSample } = await client.fetchAllCalls(7);
+    // Fetch calls — days param: 1 = today only, 7 = full week
+    const days = parseInt(req.query.days || req.body?.days || 1);
+    const { calls: rawCalls, firstRawSample } = await client.fetchAllCalls(days);
 
     if (rawCalls.length === 0) {
       logSync({ synced: 0, skipped: 0, failed: 0, status: 'ok' });
@@ -100,10 +101,19 @@ router.get('/status', (req, res) => {
       wsConnected = intelliconClient ? intelliconClient.isWsConnected() : false;
     } catch (_) {}
 
+    // Calculate next sync time (every 5 minutes)
+    const now = new Date();
+    const nextMinute = Math.ceil(now.getMinutes() / 5) * 5;
+    const nextSync = new Date(now);
+    nextSync.setMinutes(nextMinute, 0, 0);
+    if (nextSync <= now) nextSync.setMinutes(nextSync.getMinutes() + 5);
+
     res.json({
       wsConnected,
       lastSync: lastSync || null,
       recentSyncs,
+      nextSync: nextSync.toISOString(),
+      syncInterval: 'Every 5 minutes (today\'s calls)',
       configured: !!(process.env.INTELLICON_EMAIL && process.env.INTELLICON_PASSWORD && process.env.INTELLICON_BASE_URL)
     });
   } catch (err) {

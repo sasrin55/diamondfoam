@@ -191,20 +191,27 @@ function SyncBar({ onSyncComplete }) {
     ? new Date(status.lastSync.synced_at).toLocaleString('en-PK', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
     : 'Never';
 
+  const nextSyncTime = status?.nextSync
+    ? new Date(status.nextSync).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })
+    : null;
+
   const configured = status?.configured;
   const wsConnected = status?.wsConnected;
+  const lastStatus = status?.lastSync?.status;
 
   return (
     <div className="bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-2">
-        <span className={`w-2.5 h-2.5 rounded-full ${wsConnected ? 'bg-emerald-400' : 'bg-slate-500'}`} title={wsConnected ? 'WebSocket connected' : 'WebSocket disconnected'} />
-        <span className="text-slate-300 text-sm font-medium">Intellicon</span>
+        <span className={`w-2.5 h-2.5 rounded-full ${configured && lastStatus === 'ok' ? 'bg-emerald-400 animate-pulse' : configured ? 'bg-amber-400' : 'bg-slate-500'}`} />
+        <span className="text-slate-300 text-sm font-medium">Auto-Sync</span>
+        {configured && <span className="text-xs text-emerald-400 bg-emerald-900/30 px-2 py-0.5 rounded-full border border-emerald-700/40">Every 5 min</span>}
         {!configured && <span className="text-xs text-amber-400 bg-amber-900/30 px-2 py-0.5 rounded-full border border-amber-700/40">Not configured</span>}
       </div>
-      <span className="text-slate-500 text-xs">Last sync: {lastSyncTime}</span>
+      <span className="text-slate-500 text-xs">Last: {lastSyncTime}</span>
+      {nextSyncTime && <span className="text-slate-500 text-xs">Next: {nextSyncTime}</span>}
       {status?.lastSync && (
-        <span className="text-slate-500 text-xs">
-          +{status.lastSync.calls_synced ?? 0} synced · {status.lastSync.calls_skipped ?? 0} skipped
+        <span className={`text-xs ${lastStatus === 'ok' ? 'text-emerald-500' : 'text-red-400'}`}>
+          {lastStatus === 'ok' ? `+${status.lastSync.calls_synced ?? 0} new calls` : lastStatus}
         </span>
       )}
       <div className="ml-auto flex items-center gap-3">

@@ -476,11 +476,17 @@ app.listen(PORT, async () => {
     }, 3000);
   }
 
-  // Cron: sync every 30 minutes
-  cron.schedule('*/30 * * * *', async () => {
-    console.log('[Cron] Running scheduled Intellicon sync...');
-    try { await runIntelliconSync(); }
+  // Cron: sync today's calls every 5 minutes, full 7-day sync once a day at midnight
+  cron.schedule('*/5 * * * *', async () => {
+    console.log('[Cron] Running 5-minute sync for today\'s calls...');
+    try { await runIntelliconSync(1); } // 1 day = today only, fast
     catch (err) { console.error('[Cron] Sync failed:', err.message); }
+  });
+
+  cron.schedule('0 0 * * *', async () => {
+    console.log('[Cron] Running nightly full sync (7 days)...');
+    try { await runIntelliconSync(7); }
+    catch (err) { console.error('[Cron] Full sync failed:', err.message); }
   });
 });
 
