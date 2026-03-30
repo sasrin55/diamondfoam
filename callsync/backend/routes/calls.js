@@ -144,6 +144,23 @@ router.get('/', (req, res) => {
   }
 });
 
+// GET /api/calls/pending-recordings  ← must be before /:id
+router.get('/pending-recordings', (req, res) => {
+  try {
+    const db = getDb();
+    const rows = db.prepare(`
+      SELECT interaction_id, employee_name, recorded_at, duration_seconds
+      FROM calls
+      WHERE audio_file_path IS NULL
+        AND sync_status = 'bookmarklet'
+      ORDER BY recorded_at DESC
+    `).all();
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/calls/:id
 router.get('/:id', (req, res) => {
   try {
@@ -343,23 +360,6 @@ router.post('/reprocess-all', async (req, res) => {
   }
 });
 
-// GET /api/calls/pending-recordings
-// Return interaction_ids of calls that are imported but have no audio yet
-router.get('/pending-recordings', (req, res) => {
-  try {
-    const db = getDb();
-    const rows = db.prepare(`
-      SELECT interaction_id, employee_name, recorded_at, duration_seconds
-      FROM calls
-      WHERE audio_file_path IS NULL
-        AND sync_status = 'bookmarklet'
-      ORDER BY recorded_at DESC
-    `).all();
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 module.exports = router;
 module.exports.runTranscription = runTranscription;
