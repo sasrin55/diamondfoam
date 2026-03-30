@@ -1078,8 +1078,45 @@ function SettingsTab() {
         )}
       </div>
 
+      {/* Bookmarklet */}
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-4">
-        <h2 className="text-slate-100 font-semibold text-lg">Nayatel SIP Trunk</h2>
+        <div>
+          <h2 className="text-slate-100 font-semibold text-lg">Browser Sync Bookmarklet</h2>
+          <p className="text-slate-400 text-sm mt-1">
+            Can't whitelist the server IP? Use this bookmarklet instead. Click it while logged into
+            Intellicon and it will pull today's calls and recordings directly into CallSync.
+          </p>
+        </div>
+        <div className="bg-slate-900/60 border border-indigo-700/40 rounded-xl p-4 space-y-3">
+          <p className="text-slate-300 text-sm font-semibold">How to set up (one time):</p>
+          <ol className="text-slate-400 text-sm space-y-1 list-decimal list-inside">
+            <li>Show your browser bookmarks bar (Ctrl+Shift+B)</li>
+            <li>Drag the button below onto your bookmarks bar</li>
+            <li>Done — it's saved as a bookmark</li>
+          </ol>
+          <p className="text-slate-300 text-sm font-semibold mt-2">How to use:</p>
+          <ol className="text-slate-400 text-sm space-y-1 list-decimal list-inside">
+            <li>Log into Intellicon in your browser</li>
+            <li>Click the <strong className="text-indigo-300">CallSync Sync</strong> bookmark</li>
+            <li>A status box appears — wait for it to finish</li>
+            <li>Come back to CallSync — calls appear automatically</li>
+          </ol>
+          <div className="pt-2">
+            <a
+              href={`javascript:(async function(){const API='https://diamondfoam-production.up.railway.app/api';const el=document.createElement('div');el.style='position:fixed;top:20px;right:20px;background:%231e293b;color:%23e2e8f0;padding:16px 20px;border-radius:12px;z-index:99999;font-family:sans-serif;font-size:13px;min-width:280px;border:1px solid %23334155;box-shadow:0 4px 24px rgba(0,0,0,0.5);line-height:1.6';el.innerHTML='<b style="color:%2394a3b8">CallSync</b><br>Fetching calls from Intellicon...';document.body.appendChild(el);const log=(m)=>{el.innerHTML='<b style="color:%2394a3b8">CallSync</b><br>'+m};try{const f=JSON.stringify({answered:true,dashboard:true,pageNumber:1});const r=await fetch('/intellicon/apis/report/call_center?filter='+f+'&offset=0',{credentials:'include'});if(!r.ok)throw new Error('Intellicon API '+r.status);const d=await r.json();const calls=Array.isArray(d)?d:(d.data||d.calls||d.records||d.interactions||[]);const today=new Date().toISOString().slice(0,10);const todayCalls=calls.filter(c=>{const dt=new Date(c.createdAt||c.created_at||c.startTime||0);return dt.toISOString().slice(0,10)===today});log('Found '+todayCalls.length+' calls today. Syncing...');const ir=await fetch(API+'/calls/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({calls:todayCalls})});const res=await ir.json();log(res.synced+' new calls synced. Downloading recordings...');let done=0;for(const nc of(res.newCalls||[])){try{const baseUrl=nc.recordingUrl;const dirUrl=baseUrl.substring(0,baseUrl.lastIndexOf('/')+1);const lr=await fetch(dirUrl,{credentials:'include'});const html=await lr.text();const rx=new RegExp('[\\\\w.-]*'+nc.interactionId+'[\\\\w.-]*\\\\.mp3','i');const m=html.match(rx);if(m){const ar=await fetch(dirUrl+m[0],{credentials:'include'});if(ar.ok){const blob=await ar.blob();const fd=new FormData();fd.append('audio',blob,nc.interactionId+'.mp3');fd.append('interaction_id',nc.interactionId);await fetch(API+'/calls/recording',{method:'POST',body:fd});done++}}log(res.synced+' calls synced. Recordings: '+done+'/'+res.newCalls.length+'...')}catch(e){}}log('\\u2713 Done! '+res.synced+' calls, '+done+' recordings. AI processing started.');setTimeout(()=>el.remove(),6000)}catch(e){log('\\u274c '+e.message);setTimeout(()=>el.remove(),8000)}})()`}
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-5 py-2.5 rounded-lg cursor-grab active:cursor-grabbing select-none border-2 border-indigo-400"
+              onClick={e => e.preventDefault()}
+              draggable="true"
+            >
+              ⬡ CallSync Sync
+            </a>
+            <p className="text-slate-500 text-xs mt-2">Drag this button to your bookmarks bar</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-4">
+        <h2 className="text-slate-100 font-semibold text-lg">SIP Trunk</h2>
         <p className="text-slate-400 text-sm">Configure your Nayatel SIP trunk for automatic call recording ingestion.</p>
         <div className="grid grid-cols-2 gap-4">
           <div>

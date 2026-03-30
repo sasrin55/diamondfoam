@@ -206,6 +206,106 @@ Return only JSON. No markdown. No explanation.`
   return JSON.parse(cleaned);
 }
 
+// POST /api/calls/import
+// Bulk import raw Intellicon call objects sent from the browser bookmarklet
+router.post('/import', async (req, res) => {
+  try {
+    const { calls: rawCalls } = req.body;
+    if (!Array.isArray(rawCalls) || rawCalls.length === 0) {
+      return res.status(400).json({ error: 'No calls provided' });
+    }
+
+    const db = getDb();
+    let synced = 0, skipped = 0;
+    const newCalls = [];
+
+    for (const raw of rawCalls) {
+      const interactionId = raw.interactionId || raw.interaction_id || raw.id || raw._id;
+      if (!interactionId) { skipped++; continue; }
+
+      const existing = db.prepare('SELECT id FROM calls WHERE interaction_id = ?').get(String(interactionId));
+      if (existing) { skipped++; continue; }
+
+      // Normalise fields
+      const cli = raw.cli || raw.callerNumber || raw.caller || raw.from || raw.ani || null;
+      const did = raw.did || raw.to || raw.dnis || null;
+      const direction = (() => {
+        const d = String(raw.direction || raw.callDirection || 'inbound').toLowerCase();
+        if (d.includes('out')) return 'Outbound';
+        if (d.includes('miss')) return 'Missed';
+        return 'Inbound';
+      })();
+      const recordedAt = raw.createdAt || raw.created_at || raw.startTime || new Date().toISOString();
+
+      // Build recording URL from confirmed pattern
+      const date = new Date(recordedAt);
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const dirLower = direction.toLowerCase();
+      const recordingUrl = raw.recordingUrl || raw.recording_url || raw.audioUrl ||
+        `/intellicon/sounds/recording/${yyyy}/${mm}/${dd}/${dirLower}-${cli}-${interactionId}`;
+
+      const stmt = db.prepare(`
+        INSERT OR IGNORE INTO calls
+          (interaction_id, employee_name, agent_id, distributor_name, cli, did,
+           direction, queue_name, duration_seconds, recorded_at, sync_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'bookmarklet')
+      `);
+
+      const result = stmt.run(
+        String(interactionId),
+        raw.agentName || raw.agent_name || raw.agentFullName || null,
+        raw.agentId || raw.agent_id || null,
+        null,
+        cli, did, direction,
+        raw.queueName || raw.queue_name || null,
+        parseInt(raw.duration || raw.totalDuration || raw.billDuration || 0),
+        new Date(recordedAt).toISOString()
+      );
+
+      if (result.lastInsertRowid) {
+        synced++;
+        newCalls.push({ id: result.lastInsertRowid, interactionId: String(interactionId), recordingUrl });
+      } else {
+        skipped++;
+      }
+    }
+
+    res.json({ synced, skipped, newCalls });
+  } catch (err) {
+    console.error('Import error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/calls/recording
+// Receive a recording uploaded from the browser bookmarklet, then run AI pipeline
+router.post('/recording', upload.single('audio'), async (req, res) => {
+  try {
+    const { interaction_id } = req.body;
+    if (!interaction_id) return res.status(400).json({ error: 'interaction_id required' });
+    if (!req.file) return res.status(400).json({ error: 'audio file required' });
+
+    const db = getDb();
+    const call = db.prepare('SELECT * FROM calls WHERE interaction_id = ?').get(interaction_id);
+    if (!call) return res.status(404).json({ error: 'Call not found. Import metadata first.' });
+
+    db.prepare('UPDATE calls SET audio_file_path = ? WHERE id = ?').run(req.file.path, call.id);
+
+    // Run AI pipeline in background
+    const { processCall } = require('../server');
+    processCall(call.id).catch(err => {
+      console.error(`[Bookmarklet] Pipeline failed for call ${call.id}:`, err.message);
+    });
+
+    res.json({ success: true, call_id: call.id, message: 'Recording received, AI processing started' });
+  } catch (err) {
+    console.error('Recording upload error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
 module.exports.runTranscription = runTranscription;
 module.exports.runSummarisation = runSummarisation;
