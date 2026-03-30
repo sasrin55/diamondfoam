@@ -310,6 +310,57 @@ router.post('/recording', upload.single('audio'), async (req, res) => {
   }
 });
 
+// POST /api/calls/reprocess-all
+// Re-run AI pipeline for calls that have a recording but are not yet complete
+router.post('/reprocess-all', async (req, res) => {
+  try {
+    const db = getDb();
+    const pending = db.prepare(`
+      SELECT id FROM calls
+      WHERE audio_file_path IS NOT NULL
+        AND (sync_status != 'complete' OR summary IS NULL)
+      ORDER BY recorded_at DESC
+      LIMIT 50
+    `).all();
+
+    if (pending.length === 0) {
+      return res.json({ queued: 0, message: 'No calls need reprocessing' });
+    }
+
+    const { processCall } = require('../server');
+    let queued = 0;
+    for (const row of pending) {
+      processCall(row.id).catch(err => {
+        console.error(`[Reprocess] Failed for call ${row.id}:`, err.message);
+      });
+      queued++;
+    }
+
+    res.json({ queued, message: `Queued ${queued} calls for AI reprocessing` });
+  } catch (err) {
+    console.error('Reprocess error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/calls/pending-recordings
+// Return interaction_ids of calls that are imported but have no audio yet
+router.get('/pending-recordings', (req, res) => {
+  try {
+    const db = getDb();
+    const rows = db.prepare(`
+      SELECT interaction_id, employee_name, recorded_at, duration_seconds
+      FROM calls
+      WHERE audio_file_path IS NULL
+        AND sync_status = 'bookmarklet'
+      ORDER BY recorded_at DESC
+    `).all();
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
 module.exports.runTranscription = runTranscription;
 module.exports.runSummarisation = runSummarisation;
