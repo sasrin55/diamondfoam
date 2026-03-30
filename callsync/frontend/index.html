@@ -230,6 +230,15 @@ function SyncBar({ onSyncComplete }) {
   );
 }
 
+// ── Shared constants ──────────────────────────────────────────────────────────
+
+const STATUS_STYLES_SHARED = {
+  open:        'bg-red-900/50 text-red-300 border-red-700/50',
+  in_progress: 'bg-amber-900/50 text-amber-300 border-amber-700/50',
+  resolved:    'bg-emerald-900/50 text-emerald-300 border-emerald-700/50',
+};
+const STATUS_LABELS_SHARED = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved' };
+
 // ── Dashboard Tab ─────────────────────────────────────────────────────────────
 
 function DashboardTab({ onNavigate }) {
@@ -273,77 +282,126 @@ function DashboardTab({ onNavigate }) {
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Calls" value={stats?.total_calls ?? 0} color="indigo" />
-        <StatCard label="Today's Calls" value={stats?.calls_today ?? 0} sub={`${stats?.total_employees ?? 0} agents`} color="emerald" />
-        <StatCard label="Open Issues" value={openIssues} sub={`${issues.length} categories total`} color="amber" />
         <StatCard label="Flagged Calls" value={stats?.flagged_calls ?? 0} sub="Need attention" color="red" />
+        <StatCard label="Open Issues" value={openIssues} sub={`${issues.length} categories total`} color="amber" />
+        <StatCard label="Agents with Issues" value={agentsWithIssues} sub={`${stats?.total_employees ?? 0} total agents`} color="amber" />
       </div>
 
-      {/* Calls Feed */}
+      {/* Live Issues Feed */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-slate-100 font-semibold text-lg">Calls Feed</h2>
-          <button onClick={() => onNavigate('log')} className="text-indigo-400 hover:text-indigo-300 text-sm transition-colors">
-            View all →
+          <h2 className="text-slate-100 font-semibold text-lg">⚑ Live Issues Feed</h2>
+          <button onClick={() => onNavigate('issues')} className="text-indigo-400 hover:text-indigo-300 text-sm transition-colors">
+            Manage issues →
           </button>
         </div>
 
-        {recent.filter(c => c.summary).length === 0 ? (
+        {issues.length === 0 ? (
           <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-10 text-center">
-            <p className="text-4xl mb-3">📞</p>
-            <p className="text-slate-300 font-medium">No analysed calls yet</p>
-            <p className="text-slate-500 text-sm mt-1 mb-4">Import calls with recordings — AI will transcribe and summarise each one.</p>
+            <p className="text-3xl mb-3">⚑</p>
+            <p className="text-slate-300 font-medium">No issues analysed yet</p>
+            <p className="text-slate-500 text-sm mt-1">Go to Issues tab → click "Re-analyse Calls" after AI processes your recordings.</p>
           </div>
         ) : (
-          <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden divide-y divide-slate-800">
-            {recent.filter(c => c.summary).map(call => (
-              <div key={call.id}
-                className="px-5 py-4 flex items-start gap-4 hover:bg-slate-700/20 cursor-pointer transition-colors"
-                onClick={() => setSelected(call)}
-              >
-                {/* Left: agent + meta */}
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-slate-100 text-sm font-semibold">
-                      {call.employee_name || 'Unknown Agent'}
+          <div className="space-y-3">
+            {issues.slice(0, 5).map(issue => (
+              <div key={issue.id} className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+                {/* Issue header */}
+                <div className="px-4 py-3 flex items-center gap-3 border-b border-slate-700/50">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${STATUS_STYLES_SHARED[issue.status]}`}>
+                    {STATUS_LABELS_SHARED[issue.status]}
+                  </span>
+                  <span className="text-slate-100 font-semibold text-sm flex-1">{issue.name}</span>
+                  <span className="text-slate-400 text-xs">{issue.call_count} call{issue.call_count !== 1 ? 's' : ''}</span>
+                  {(issue.agents || []).length > 0 && (
+                    <span className="text-slate-500 text-xs">
+                      {issue.agents.map(a => a.agent_name).join(', ')}
                     </span>
-                    {(call.customer_name || call.distributor_name) && (
-                      <>
-                        <span className="text-slate-600 text-xs">·</span>
-                        <span className="text-slate-400 text-xs">
-                          {call.customer_name || call.distributor_name}
-                        </span>
-                      </>
-                    )}
-                    {call.order_number && (
-                      <span className="text-xs px-1.5 py-0.5 bg-slate-700 text-amber-300 rounded font-mono border border-slate-600">
-                        #{call.order_number}
-                      </span>
-                    )}
-                    <DirectionPill direction={call.direction} />
-                    <span className="text-slate-600 text-xs">{fmtDuration(call.duration_seconds)}</span>
-                  </div>
-                  {/* Summary */}
-                  <p className="text-slate-300 text-xs leading-relaxed line-clamp-2">{call.summary}</p>
-                  {/* Topics */}
-                  {call.topics?.length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-0.5">
-                      {call.topics.slice(0, 4).map((t, i) => (
-                        <span key={i} className="text-xs px-2 py-0.5 bg-indigo-900/40 text-indigo-300 border border-indigo-700/30 rounded-full">{t}</span>
-                      ))}
-                      {call.topics.length > 4 && <span className="text-xs text-slate-500">+{call.topics.length - 4}</span>}
+                  )}
+                </div>
+                {/* Linked calls */}
+                <div className="divide-y divide-slate-800/60">
+                  {(issue.calls || []).slice(0, 3).map(call => (
+                    <div key={call.id} className="px-4 py-2.5 flex items-start gap-3 bg-slate-900/40 border-l-2 border-indigo-500/30">
+                      <div className="flex-1 min-w-0 space-y-0.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-slate-200 text-xs font-semibold">
+                            {call.customer_name || call.distributor_name || 'Unknown Customer'}
+                          </span>
+                          {call.order_number && (
+                            <span className="text-xs px-1.5 py-0 bg-slate-700 text-amber-300 rounded font-mono border border-slate-600/60">
+                              #{call.order_number}
+                            </span>
+                          )}
+                          <span className="text-slate-500 text-xs">·</span>
+                          <span className="text-slate-400 text-xs">{call.employee_name}</span>
+                          <DirectionPill direction={call.direction} />
+                          {call.flagged && <FlagBadge flagged={true} reason="" />}
+                          <span className="text-slate-600 text-xs ml-auto">{fmtDate(call.recorded_at)}</span>
+                        </div>
+                        {call.details ? (
+                          <p className="text-amber-300/80 text-xs leading-relaxed line-clamp-1">{call.details}</p>
+                        ) : call.summary ? (
+                          <p className="text-slate-500 text-xs leading-relaxed line-clamp-1">{call.summary}</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                  {(issue.calls || []).length > 3 && (
+                    <div className="px-4 py-2 bg-slate-900/20">
+                      <button onClick={() => onNavigate('issues')} className="text-indigo-400 hover:text-indigo-300 text-xs transition-colors">
+                        +{issue.calls.length - 3} more calls →
+                      </button>
                     </div>
                   )}
                 </div>
-                {/* Right: date + flag */}
-                <div className="text-right shrink-0 space-y-1.5">
-                  <p className="text-slate-500 text-xs whitespace-nowrap">{fmtDate(call.recorded_at)}</p>
-                  {call.flagged && <FlagBadge flagged={true} />}
-                </div>
               </div>
             ))}
+            {issues.length > 5 && (
+              <button onClick={() => onNavigate('issues')} className="w-full text-center text-indigo-400 hover:text-indigo-300 text-sm py-2 transition-colors">
+                View all {issues.length} issue categories →
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {/* Agent performance strip */}
+      {recent.length > 0 && (() => {
+        const agentMap = {};
+        recent.forEach(c => {
+          if (!c.employee_name) return;
+          if (!agentMap[c.employee_name]) agentMap[c.employee_name] = { calls: 0, issues: 0 };
+          agentMap[c.employee_name].calls++;
+        });
+        issues.forEach(issue => (issue.agents || []).forEach(a => {
+          if (agentMap[a.agent_name]) agentMap[a.agent_name].issues += a.call_count;
+        }));
+        const agentList = Object.entries(agentMap).sort((a, b) => b[1].issues - a[1].issues || b[1].calls - a[1].calls);
+        if (!agentList.length) return null;
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-slate-100 font-semibold text-lg">◉ Agent Overview</h2>
+              <button onClick={() => onNavigate('agents')} className="text-indigo-400 hover:text-indigo-300 text-sm transition-colors">
+                Full breakdown →
+              </button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+              {agentList.map(([name, data]) => (
+                <button key={name} onClick={() => onNavigate('agents')}
+                  className="flex-shrink-0 bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-left hover:border-indigo-500/50 transition-colors min-w-[140px]">
+                  <p className="text-slate-100 text-sm font-semibold truncate">{name}</p>
+                  <p className="text-slate-400 text-xs mt-1">{data.calls} calls</p>
+                  {data.issues > 0 && (
+                    <p className="text-amber-400 text-xs">{data.issues} issue call{data.issues !== 1 ? 's' : ''}</p>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {selected && <CallDetailModal call={selected} onClose={() => setSelected(null)} />}
     </div>
@@ -1458,8 +1516,8 @@ function AgentsTab() {
                                       </span>
                                     </td>
                                     <td className="py-2 px-3">
-                                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${STATUS_STYLES[issue.status]}`}>
-                                        {STATUS_LABELS[issue.status]}
+                                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${STATUS_STYLES_SHARED[issue.status]}`}>
+                                        {STATUS_LABELS_SHARED[issue.status]}
                                       </span>
                                     </td>
                                   </tr>
