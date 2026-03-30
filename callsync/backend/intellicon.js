@@ -285,16 +285,47 @@ class IntelliconClient {
 
     console.log(`[Intellicon] Downloading recording for ${interactionId}...`);
 
-    const urlPatterns = [
+    // Confirmed URL pattern:
+    // /intellicon/sounds/recording/YYYY/MM/DD/{direction}-{cli}-{interactionId}-{timestamp}.mp3
+    // The timestamp is unknown so we must list the directory and match by interactionId.
+    const dirUrl = `/intellicon/sounds/recording/${yyyy}/${mm}/${dd}/`;
+
+    try {
+      console.log(`[Intellicon] Listing directory: ${dirUrl}`);
+      const res = await this.client.get(dirUrl);
+      const html = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+
+      // Match any filename containing the interactionId
+      // Pattern: {direction}-{cli}-{interactionId}-{timestamp}.mp3
+      const regex = new RegExp(`[\\w.-]*${interactionId}[\\w.-]*\\.mp3`, 'i');
+      const match = html.match(regex);
+
+      if (match) {
+        const filename = match[0];
+        console.log(`[Intellicon] Found file: ${filename}`);
+        const fileRes = await this.client.get(`${dirUrl}${filename}`, { responseType: 'stream', timeout: 120000 });
+        await new Promise((resolve, reject) => {
+          const writer = fs.createWriteStream(destPath);
+          fileRes.data.pipe(writer);
+          writer.on('finish', resolve);
+          writer.on('error', reject);
+        });
+        console.log(`[Intellicon] Saved recording: ${destPath}`);
+        return destPath;
+      } else {
+        console.log(`[Intellicon] No file matching ${interactionId} found in directory listing`);
+      }
+    } catch (err) {
+      console.log(`[Intellicon] Directory listing failed (${dirUrl}): ${err.message}`);
+    }
+
+    // Fallback: try constructing URL without timestamp (older recordings may not have it)
+    const fallbackPatterns = [
       `/intellicon/sounds/recording/${yyyy}/${mm}/${dd}/${direction}-${cli}-${interactionId}.mp3`,
       `/intellicon/sounds/recording/${yyyy}/${mm}/${dd}/${interactionId}.mp3`,
-      `/sounds/recording/${yyyy}/${mm}/${dd}/${direction}-${cli}-${interactionId}.mp3`,
-      `/recordings/${yyyy}/${mm}/${dd}/${interactionId}.mp3`,
-      `/recordings/${interactionId}.mp3`,
-      `/api/recordings/${interactionId}`,
     ];
 
-    for (const urlPattern of urlPatterns) {
+    for (const urlPattern of fallbackPatterns) {
       try {
         const res = await this.client.get(urlPattern, { responseType: 'stream', timeout: 60000 });
         if (res.status === 200) {
@@ -304,16 +335,16 @@ class IntelliconClient {
             writer.on('finish', resolve);
             writer.on('error', reject);
           });
-          console.log(`[Intellicon] Saved recording: ${destPath}`);
+          console.log(`[Intellicon] Saved recording via fallback: ${destPath}`);
           return destPath;
         }
       } catch (err) {
         if (err.response?.status === 404) continue;
-        console.log(`[Intellicon] Recording download failed (${urlPattern}): ${err.message}`);
+        console.log(`[Intellicon] Fallback download failed (${urlPattern}): ${err.message}`);
       }
     }
 
-    // Try directory listing
+    // Legacy directory listing path (keep for compatibility)
     try {
       const listUrl = `/intellicon/sounds/recording/${yyyy}/${mm}/${dd}/`;
       const res = await this.client.get(listUrl);
