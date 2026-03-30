@@ -4,25 +4,34 @@ const { getDb } = require('../database');
 const Anthropic = require('@anthropic-ai/sdk');
 
 // POST /api/issues/analyze
-// Reads all transcripts, clusters them into issue categories via Claude
+// Reads all transcripts/summaries, clusters them into issue categories via Claude
 router.post('/analyze', async (req, res) => {
   try {
     const db = getDb();
 
     const calls = db.prepare(`
-      SELECT id, employee_name, distributor_name, transcript, summary, flagged, flag_reason
+      SELECT id, employee_name, distributor_name, customer_name, order_number,
+             transcript, summary, topics, flagged, flag_reason, recorded_at
       FROM calls
-      WHERE transcript IS NOT NULL AND transcript != ''
-      ORDER BY created_at DESC
+      WHERE summary IS NOT NULL AND summary != ''
+         OR (transcript IS NOT NULL AND transcript != '')
+      ORDER BY recorded_at DESC
+      LIMIT 200
     `).all();
 
     if (calls.length === 0) {
-      return res.status(400).json({ error: 'No transcripts found. Upload and transcribe calls first.' });
+      return res.status(400).json({ error: 'No analysed calls found. Import calls with recordings first, then wait for AI processing to complete.' });
     }
 
-    const callList = calls.map(c =>
-      `Call ID ${c.id} (Agent: ${c.employee_name || 'Unknown'} | Customer: ${c.distributor_name || 'Unknown'}):\n${c.transcript}`
-    ).join('\n\n---\n\n');
+    // Use summary when available (English, structured), fall back to transcript
+    const callList = calls.map(c => {
+      const content = c.summary
+        ? `Summary: ${c.summary}${c.topics ? `\nTopics: ${c.topics}` : ''}${c.flag_reason ? `\nFlagged: ${c.flag_reason}` : ''}`
+        : c.transcript;
+      const customer = c.customer_name || c.distributor_name || 'Unknown';
+      const order = c.order_number ? ` | Order: ${c.order_number}` : '';
+      return `Call ID ${c.id} (Agent: ${c.employee_name || 'Unknown'} | Customer: ${customer}${order}):\n${content}`;
+    }).join('\n\n---\n\n');
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
