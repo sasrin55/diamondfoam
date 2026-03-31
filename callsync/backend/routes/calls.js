@@ -366,6 +366,20 @@ router.post('/reprocess-all', async (req, res) => {
 });
 
 
+// DELETE /api/calls/reset — wipe all call data for a fresh start
+router.delete('/reset', (req, res) => {
+  try {
+    const db = getDb();
+    db.prepare('DELETE FROM call_issue_links').run();
+    db.prepare('DELETE FROM issue_types').run();
+    db.prepare('DELETE FROM calls').run();
+    res.json({ success: true, message: 'All call data cleared' });
+  } catch (err) {
+    console.error('Reset error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
 module.exports.runTranscription = runTranscription;
 module.exports.runSummarisation = runSummarisation;

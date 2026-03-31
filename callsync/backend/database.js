@@ -195,28 +195,30 @@ function getStats() {
       SUM(flagged) AS flagged_calls,
       COUNT(CASE WHEN date(recorded_at) = date('now') THEN 1 END) AS calls_today
     FROM calls
+    WHERE audio_file_path IS NOT NULL
   `).get();
 
   const callsByEmployee = db.prepare(`
     SELECT employee_name AS name, COUNT(*) AS count
-    FROM calls WHERE employee_name IS NOT NULL
+    FROM calls WHERE employee_name IS NOT NULL AND audio_file_path IS NOT NULL
     GROUP BY employee_name ORDER BY count DESC
   `).all();
 
   const callsByDirection = db.prepare(`
     SELECT direction, COUNT(*) AS count
-    FROM calls GROUP BY direction ORDER BY count DESC
+    FROM calls WHERE audio_file_path IS NOT NULL
+    GROUP BY direction ORDER BY count DESC
   `).all();
 
   const topCallers = db.prepare(`
     SELECT COALESCE(cli, distributor_name) AS cli, COUNT(*) AS count
-    FROM calls WHERE cli IS NOT NULL OR distributor_name IS NOT NULL
+    FROM calls WHERE (cli IS NOT NULL OR distributor_name IS NOT NULL) AND audio_file_path IS NOT NULL
     GROUP BY COALESCE(cli, distributor_name) ORDER BY count DESC LIMIT 8
   `).all();
 
   const callsByDistributor = db.prepare(`
     SELECT distributor_name AS name, COUNT(*) AS count
-    FROM calls WHERE distributor_name IS NOT NULL
+    FROM calls WHERE distributor_name IS NOT NULL AND audio_file_path IS NOT NULL
     GROUP BY distributor_name ORDER BY count DESC LIMIT 8
   `).all();
 

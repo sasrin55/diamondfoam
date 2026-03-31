@@ -1060,6 +1060,9 @@ function SettingsTab() {
   const [reprocessing, setReprocessing] = useState(false);
   const [reprocessMsg, setReprocessMsg] = useState('');
   const [pendingRecs, setPendingRecs] = useState(null);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetMsg, setResetMsg] = useState('');
 
   useEffect(() => {
     fetch(`${API}/stats`).then(r => r.json()).then(s => setCalls(s.total_calls || 0)).catch(() => {});
@@ -1093,6 +1096,22 @@ function SettingsTab() {
       setReprocessMsg(`Error: ${err.message}`);
     } finally {
       setReprocessing(false);
+    }
+  };
+
+  const runReset = async () => {
+    setResetting(true); setResetMsg('');
+    try {
+      const res = await fetch(`${API}/calls/reset`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setResetMsg('All data cleared. Refresh the page to see the empty dashboard.');
+      setResetConfirm(false);
+      setCalls(0);
+    } catch (err) {
+      setResetMsg(`Error: ${err.message}`);
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -1327,6 +1346,45 @@ function SettingsTab() {
         <div className="bg-zinc-900/40 rounded-lg p-3 text-zinc-400 text-xs">
           💡 At current rates, processing 1,000 calls per month costs approximately <strong className="text-zinc-200">$4 USD (≈ PKR 1,100)</strong>.
         </div>
+      </div>
+
+      {/* Danger Zone */}
+      <div className="bg-zinc-900 border border-red-900/50 rounded-xl p-6 space-y-4">
+        <div>
+          <h2 className="text-red-400 font-semibold text-lg">Danger Zone</h2>
+          <p className="text-zinc-400 text-sm mt-1">
+            Permanently delete all calls, recordings references, and AI summaries from the database. Use this to start fresh if the dashboard shows stale or incorrect data.
+          </p>
+        </div>
+        {!resetConfirm ? (
+          <button
+            onClick={() => setResetConfirm(true)}
+            className="bg-red-950 hover:bg-red-900 border border-red-800 text-red-400 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          >
+            Reset All Data
+          </button>
+        ) : (
+          <div className="bg-red-950/40 border border-red-800/60 rounded-lg p-4 space-y-3">
+            <p className="text-red-300 text-sm font-semibold">Are you sure? This cannot be undone.</p>
+            <p className="text-zinc-400 text-xs">All {calls} calls and their AI analysis will be permanently deleted.</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={runReset}
+                disabled={resetting}
+                className="bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors"
+              >
+                {resetting ? 'Deleting…' : 'Yes, delete everything'}
+              </button>
+              <button
+                onClick={() => setResetConfirm(false)}
+                className="text-zinc-400 hover:text-zinc-200 text-sm px-3 py-2"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+        {resetMsg && <p className={`text-sm ${resetMsg.startsWith('Error') ? 'text-red-400' : 'text-emerald-400'}`}>{resetMsg}</p>}
       </div>
     </div>
   );
