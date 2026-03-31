@@ -454,6 +454,17 @@ app.get('/api/seed', (req, res) => {
   }
 });
 
+// Serve Tampermonkey userscript
+app.get('/callsync-autosync.user.js', (req, res) => {
+  const scriptPath = path.join(__dirname, '../userscript/callsync-autosync.user.js');
+  if (!fs.existsSync(scriptPath)) {
+    return res.status(404).send('// Userscript not found');
+  }
+  res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+  res.setHeader('Content-Disposition', 'inline; filename="callsync-autosync.user.js"');
+  res.sendFile(scriptPath);
+});
+
 // Catch-all: serve frontend
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
