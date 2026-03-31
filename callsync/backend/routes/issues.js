@@ -3,44 +3,43 @@ const router = express.Router();
 const { getDb } = require('../database');
 const Anthropic = require('@anthropic-ai/sdk');
 
-// POST /api/issues/analyze
-// Reads all transcripts/summaries, clusters them into issue categories via Claude
-router.post('/analyze', async (req, res) => {
-  try {
-    const db = getDb();
+// In-memory job state — survives the HTTP timeout since it runs in the same Node process
+const job = { running: false, error: null, result: null, startedAt: null };
 
-    const calls = db.prepare(`
-      SELECT id, employee_name, distributor_name, customer_name, order_number,
-             transcript, summary, topics, flagged, flag_reason, recorded_at
-      FROM calls
-      WHERE summary IS NOT NULL AND summary != ''
-         OR (transcript IS NOT NULL AND transcript != '')
-      ORDER BY recorded_at DESC
-      LIMIT 50
-    `).all();
+async function runAnalysisJob() {
+  const db = getDb();
 
-    if (calls.length === 0) {
-      return res.status(400).json({ error: 'No analysed calls found. Import calls with recordings first, then wait for AI processing to complete.' });
-    }
+  const calls = db.prepare(`
+    SELECT id, employee_name, distributor_name, customer_name, order_number,
+           transcript, summary, topics, flagged, flag_reason, recorded_at
+    FROM calls
+    WHERE (summary IS NOT NULL AND summary != '')
+       OR (transcript IS NOT NULL AND transcript != '')
+    ORDER BY recorded_at DESC
+    LIMIT 50
+  `).all();
 
-    // Use summary when available (English, structured), fall back to transcript
-    const callList = calls.map(c => {
-      const content = c.summary
-        ? `Summary: ${c.summary}${c.topics ? `\nTopics: ${c.topics}` : ''}${c.flag_reason ? `\nFlagged: ${c.flag_reason}` : ''}`
-        : c.transcript;
-      const customer = c.customer_name || c.distributor_name || 'Unknown';
-      const order = c.order_number ? ` | Order: ${c.order_number}` : '';
-      return `Call ID ${c.id} (Agent: ${c.employee_name || 'Unknown'} | Customer: ${customer}${order}):\n${content}`;
-    }).join('\n\n---\n\n');
+  if (calls.length === 0) {
+    throw new Error('No analysed calls found. Import calls with recordings first, then wait for AI processing to complete.');
+  }
 
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const callList = calls.map(c => {
+    const content = c.summary
+      ? `Summary: ${c.summary}${c.topics ? `\nTopics: ${c.topics}` : ''}${c.flag_reason ? `\nFlagged: ${c.flag_reason}` : ''}`
+      : c.transcript;
+    const customer = c.customer_name || c.distributor_name || 'Unknown';
+    const order = c.order_number ? ` | Order: ${c.order_number}` : '';
+    return `Call ID ${c.id} (Agent: ${c.employee_name || 'Unknown'} | Customer: ${customer}${order}):\n${content}`;
+  }).join('\n\n---\n\n');
 
-    const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
-      messages: [{
-        role: 'user',
-        content: `You are analysing a set of Pakistani B2B sales call transcripts for a foam manufacturer.
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 2048,
+    messages: [{
+      role: 'user',
+      content: `You are analysing a set of Pakistani B2B sales call transcripts for a foam manufacturer.
 
 Your task: identify recurring ISSUE CATEGORIES across these calls, then map each call to the relevant issue(s).
 
@@ -76,57 +75,59 @@ Rules:
 - A call can belong to multiple issue categories
 - Keep category names concise and consistent
 - Return only valid JSON, no other text`
-      }]
-    });
+    }]
+  });
 
-    const raw = message.content[0].text.trim();
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Claude returned no valid JSON');
-    const parsed = JSON.parse(jsonMatch[0]);
+  const raw = message.content[0].text.trim();
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Claude returned no valid JSON');
+  const parsed = JSON.parse(jsonMatch[0]);
 
-    // Clear existing issue data and rebuild
-    db.prepare('DELETE FROM call_issue_links').run();
-    db.prepare('DELETE FROM issue_types').run();
+  db.prepare('DELETE FROM call_issue_links').run();
+  db.prepare('DELETE FROM issue_types').run();
 
-    const insertIssue = db.prepare(`
-      INSERT INTO issue_types (name, description, resolution)
-      VALUES (?, ?, ?)
-    `);
-    const insertLink = db.prepare(`
-      INSERT INTO call_issue_links (call_id, issue_type_id, details)
-      VALUES (?, ?, ?)
-    `);
+  const insertIssue = db.prepare(`INSERT INTO issue_types (name, description, resolution) VALUES (?, ?, ?)`);
+  const insertLink  = db.prepare(`INSERT INTO call_issue_links (call_id, issue_type_id, details) VALUES (?, ?, ?)`);
 
-    const insertAll = db.transaction(() => {
-      for (const issue of parsed.issue_types) {
-        const result = insertIssue.run(
-          issue.name,
-          issue.description || null,
-          issue.suggested_resolution || null
-        );
-        const issueId = result.lastInsertRowid;
-        for (const callId of (issue.call_ids || [])) {
-          const detail = (issue.details_per_call || {})[String(callId)] || null;
-          try {
-            insertLink.run(callId, issueId, detail);
-          } catch (_) {
-            // skip if call_id doesn't exist
-          }
-        }
+  db.transaction(() => {
+    for (const issue of parsed.issue_types) {
+      const { lastInsertRowid: issueId } = insertIssue.run(issue.name, issue.description || null, issue.suggested_resolution || null);
+      for (const callId of (issue.call_ids || [])) {
+        const detail = (issue.details_per_call || {})[String(callId)] || null;
+        try { insertLink.run(callId, issueId, detail); } catch (_) {}
       }
-    });
+    }
+  })();
 
-    insertAll();
+  return { issue_count: parsed.issue_types.length, calls_analysed: calls.length };
+}
 
-    res.json({
-      message: `Analysed ${calls.length} calls. Found ${parsed.issue_types.length} issue categories.`,
-      issue_count: parsed.issue_types.length,
-      calls_analysed: calls.length
-    });
-  } catch (err) {
-    console.error('Issues analyze error:', err);
-    res.status(500).json({ error: err.message });
+// POST /api/issues/analyze — starts job in background, returns immediately
+router.post('/analyze', (req, res) => {
+  if (job.running) {
+    return res.json({ status: 'running', startedAt: job.startedAt });
   }
+
+  job.running = true;
+  job.error   = null;
+  job.result  = null;
+  job.startedAt = new Date().toISOString();
+
+  // Fire and forget — runs after response is sent
+  runAnalysisJob()
+    .then(result => { job.result = result; })
+    .catch(err   => { job.error  = err.message; console.error('Issues analyze error:', err); })
+    .finally(()  => { job.running = false; });
+
+  res.json({ status: 'started', startedAt: job.startedAt });
+});
+
+// GET /api/issues/analyze/status — poll this to check job progress
+router.get('/analyze/status', (req, res) => {
+  if (job.running) return res.json({ status: 'running', startedAt: job.startedAt });
+  if (job.error)   return res.json({ status: 'error',   error: job.error });
+  if (job.result)  return res.json({ status: 'done',    ...job.result });
+  res.json({ status: 'idle' });
 });
 
 // GET /api/issues

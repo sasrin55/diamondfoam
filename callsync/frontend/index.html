@@ -874,16 +874,31 @@ function IssuesTab() {
   useEffect(() => { fetchIssues(); }, []);
 
   const runAnalyze = async () => {
-    setAnalyzing(true); setAnalyzeMsg('');
+    setAnalyzing(true); setAnalyzeMsg('Starting analysis...');
     try {
       const res = await fetch(`${API}/issues/analyze`, { method: 'POST' });
       let data = {};
-      try { data = await res.json(); } catch (_) {
-        throw new Error(res.status === 504 ? 'Request timed out — try again (fewer calls = faster)' : `Server error ${res.status}`);
-      }
+      try { data = await res.json(); } catch (_) { throw new Error('Server error — try again'); }
       if (!res.ok) throw new Error(data.error || 'Analysis failed');
-      setAnalyzeMsg(`Done — found ${data.issue_count} issue categories across ${data.calls_analysed} calls.`);
-      fetchIssues();
+      if (data.status === 'error') throw new Error(data.error);
+
+      // Poll status every 3 seconds until done
+      setAnalyzeMsg('AI is analysing calls…');
+      let attempts = 0;
+      while (attempts < 60) {
+        await new Promise(r => setTimeout(r, 3000));
+        attempts++;
+        const sr = await fetch(`${API}/issues/analyze/status`);
+        const s  = await sr.json();
+        if (s.status === 'done') {
+          setAnalyzeMsg(`Done — found ${s.issue_count} issue categories across ${s.calls_analysed} calls.`);
+          fetchIssues();
+          return;
+        }
+        if (s.status === 'error') throw new Error(s.error);
+        setAnalyzeMsg(`AI is analysing calls… (${attempts * 3}s)`);
+      }
+      throw new Error('Timed out waiting for analysis — check back in a moment');
     } catch (err) {
       setAnalyzeMsg(`Error: ${err.message}`);
     } finally {
