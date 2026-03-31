@@ -4,12 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CallSync — Call Intelligence Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: 'Inter', system-ui, sans-serif; background: #09090b; color: #e4e4e7; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #f8fafc; color: #1e293b; }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -41,21 +44,21 @@ function fmtDate(d) {
 
 function DirectionPill({ direction }) {
   const styles = {
-    Inbound: 'bg-emerald-900/60 text-emerald-300 border border-emerald-700',
-    Outbound: 'bg-blue-900/60 text-blue-300 border border-blue-700',
-    Missed: 'bg-red-900/60 text-red-300 border border-red-700',
+    Inbound: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    Outbound: 'bg-blue-50 text-blue-700 border border-blue-200',
+    Missed: 'bg-red-50 text-red-600 border border-red-200',
   };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[direction] || 'bg-zinc-700 text-zinc-300'}`}>
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[direction] || 'bg-gray-100 text-gray-600'}`}>
       {direction}
     </span>
   );
 }
 
 function FlagBadge({ flagged, reason }) {
-  if (!flagged) return <span className="text-zinc-500 text-xs">—</span>;
+  if (!flagged) return <span className="text-gray-400 text-xs">—</span>;
   return (
-    <span title={reason || ''} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-900/60 text-red-300 border border-red-700">
+    <span title={reason || ''} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600 border border-red-200">
       ⚑ Flagged
     </span>
   );
@@ -63,19 +66,19 @@ function FlagBadge({ flagged, reason }) {
 
 function Spinner() {
   return (
-    <div className="w-5 h-5 border-2 border-zinc-700 border-t-violet-500 rounded-full animate-spin inline-block" />
+    <div className="w-5 h-5 border-2 border-gray-200 border-t-violet-600 rounded-full animate-spin inline-block" />
   );
 }
 
 // ── Stat Card ────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, color = 'violet' }) {
-  const val_colors = { violet: 'text-violet-400', emerald: 'text-emerald-400', amber: 'text-amber-400', red: 'text-red-400', indigo: 'text-violet-400' };
+  const val_colors = { violet: 'text-violet-600', emerald: 'text-emerald-600', amber: 'text-amber-500', red: 'text-red-600', indigo: 'text-violet-600' };
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-      <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">{label}</p>
-      <p className={`text-3xl font-bold mt-2 ${val_colors[color] || 'text-white'}`}>{value}</p>
-      {sub && <p className="text-zinc-500 text-xs mt-1">{sub}</p>}
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+      <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">{label}</p>
+      <p className={`text-3xl font-bold mt-2 ${val_colors[color] || 'text-gray-900'}`}>{value}</p>
+      {sub && <p className="text-gray-400 text-xs mt-1">{sub}</p>}
     </div>
   );
 }
@@ -83,16 +86,16 @@ function StatCard({ label, value, sub, color = 'violet' }) {
 // ── Bar Chart (pure CSS) ─────────────────────────────────────────────────────
 
 function BarChart({ data, colorClass = 'bg-violet-600', title }) {
-  if (!data || data.length === 0) return <p className="text-zinc-500 text-sm">No data yet.</p>;
+  if (!data || data.length === 0) return <p className="text-gray-400 text-sm">No data yet.</p>;
   const max = Math.max(...data.map(d => d.count), 1);
   return (
     <div>
-      {title && <h3 className="text-zinc-300 font-semibold mb-3 text-sm">{title}</h3>}
+      {title && <h3 className="text-gray-700 font-semibold mb-3 text-sm">{title}</h3>}
       <div className="space-y-2">
         {data.map((d, i) => (
           <div key={i} className="flex items-center gap-2">
-            <span className="text-zinc-400 text-xs w-32 truncate shrink-0" title={d.name}>{d.name}</span>
-            <div className="flex-1 h-5 bg-zinc-800 rounded overflow-hidden">
+            <span className="text-gray-500 text-xs w-32 truncate shrink-0" title={d.name}>{d.name}</span>
+            <div className="flex-1 h-5 bg-gray-100 rounded overflow-hidden">
               <div
                 className={`${colorClass} h-full rounded bar-fill flex items-center justify-end pr-1`}
                 style={{ width: `${(d.count / max) * 100}%` }}
@@ -114,9 +117,9 @@ function RecentCallsTable({ calls, onSelect }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-zinc-700">
+          <tr className="border-b border-gray-300">
             {['Employee', 'Distributor', 'Direction', 'Duration', 'Date', 'Status'].map(h => (
-              <th key={h} className="text-left py-2 px-3 text-zinc-400 font-medium text-xs uppercase tracking-wide">{h}</th>
+              <th key={h} className="text-left py-2 px-3 text-gray-500 font-medium text-xs uppercase tracking-wide">{h}</th>
             ))}
           </tr>
         </thead>
@@ -125,20 +128,20 @@ function RecentCallsTable({ calls, onSelect }) {
             <tr
               key={call.id}
               onClick={() => onSelect(call)}
-              className="border-b border-zinc-800 hover:bg-zinc-800/60 cursor-pointer transition-colors"
+              className="border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
             >
-              <td className="py-2.5 px-3 text-zinc-200 font-medium">{call.employee_name}</td>
-              <td className="py-2.5 px-3 text-zinc-300">{call.distributor_name}</td>
+              <td className="py-2.5 px-3 text-gray-800 font-medium">{call.employee_name}</td>
+              <td className="py-2.5 px-3 text-gray-700">{call.distributor_name}</td>
               <td className="py-2.5 px-3"><DirectionPill direction={call.direction} /></td>
-              <td className="py-2.5 px-3 text-zinc-400">{fmtDuration(call.duration_seconds)}</td>
-              <td className="py-2.5 px-3 text-zinc-400">{fmtDate(call.recorded_at)}</td>
+              <td className="py-2.5 px-3 text-gray-500">{fmtDuration(call.duration_seconds)}</td>
+              <td className="py-2.5 px-3 text-gray-500">{fmtDate(call.recorded_at)}</td>
               <td className="py-2.5 px-3"><FlagBadge flagged={call.flagged} reason={call.flag_reason} /></td>
             </tr>
           ))}
         </tbody>
       </table>
       {calls.length === 0 && (
-        <p className="text-zinc-500 text-center py-8">No calls found. Seed demo data or upload a call.</p>
+        <p className="text-gray-400 text-center py-8">No calls found. Seed demo data or upload a call.</p>
       )}
     </div>
   );
@@ -147,9 +150,9 @@ function RecentCallsTable({ calls, onSelect }) {
 // ── Shared constants ──────────────────────────────────────────────────────────
 
 const STATUS_STYLES_SHARED = {
-  open:        'bg-red-900/50 text-red-300 border-red-700/50',
-  in_progress: 'bg-amber-900/50 text-amber-300 border-amber-700/50',
-  resolved:    'bg-emerald-900/50 text-emerald-300 border-emerald-700/50',
+  open:        'bg-red-50 text-red-600 border-red-200',
+  in_progress: 'bg-amber-50 text-amber-700 border-amber-200',
+  resolved:    'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 const STATUS_LABELS_SHARED = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved' };
 
@@ -161,6 +164,7 @@ function DashboardTab({ onNavigate }) {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [expandedIssue, setExpandedIssue] = useState(null);
 
   const loadData = () => {
     Promise.all([
@@ -182,7 +186,7 @@ function DashboardTab({ onNavigate }) {
 
   if (loading) return (
     <div className="flex items-center justify-center h-64 gap-3">
-      <Spinner /><span className="text-zinc-400">Loading dashboard...</span>
+      <Spinner /><span className="text-gray-500">Loading dashboard...</span>
     </div>
   );
 
@@ -202,75 +206,81 @@ function DashboardTab({ onNavigate }) {
       {/* Live Issues Feed */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-zinc-100 font-semibold text-lg">⚑ Live Issues Feed</h2>
-          <button onClick={() => onNavigate('issues')} className="text-violet-400 hover:text-violet-300 text-sm transition-colors">
+          <h2 className="text-gray-900 font-semibold text-lg">⚑ Live Issues Feed</h2>
+          <button onClick={() => onNavigate('issues')} className="text-violet-600 hover:text-violet-700 text-sm transition-colors">
             Manage issues →
           </button>
         </div>
 
         {issues.length === 0 ? (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-10 text-center">
+          <div className="bg-white border border-gray-200 rounded-xl p-10 text-center">
             <p className="text-3xl mb-3">⚑</p>
-            <p className="text-zinc-300 font-medium">No issues analysed yet</p>
-            <p className="text-zinc-500 text-sm mt-1">Go to Issues tab → click "Re-analyse Calls" after AI processes your recordings.</p>
+            <p className="text-gray-700 font-medium">No issues yet</p>
+            <p className="text-gray-400 text-sm mt-1">Issues will appear automatically once calls with recordings have been AI-processed.</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {issues.slice(0, 5).map(issue => (
-              <div key={issue.id} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-                {/* Issue header */}
-                <div className="px-4 py-3 flex items-center gap-3 border-b border-zinc-700/50">
+            {issues.slice(0, 5).map(issue => {
+              const isExp = expandedIssue === issue.id;
+              const callsToShow = isExp ? (issue.calls || []) : (issue.calls || []).slice(0, 2);
+              return (
+              <div key={issue.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                {/* Issue header — clickable to expand */}
+                <button
+                  className="w-full px-4 py-3 flex items-center gap-3 border-b border-gray-100 hover:bg-gray-50 transition-colors text-left"
+                  onClick={() => setExpandedIssue(prev => prev === issue.id ? null : issue.id)}
+                >
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${STATUS_STYLES_SHARED[issue.status]}`}>
                     {STATUS_LABELS_SHARED[issue.status]}
                   </span>
-                  <span className="text-zinc-100 font-semibold text-sm flex-1">{issue.name}</span>
-                  <span className="text-zinc-400 text-xs">{issue.call_count} call{issue.call_count !== 1 ? 's' : ''}</span>
+                  <span className="text-gray-900 font-semibold text-sm flex-1">{issue.name}</span>
+                  <span className="text-gray-400 text-xs">{issue.call_count} call{issue.call_count !== 1 ? 's' : ''}</span>
                   {(issue.agents || []).length > 0 && (
-                    <span className="text-zinc-500 text-xs">
+                    <span className="text-gray-400 text-xs hidden sm:block">
                       {issue.agents.map(a => a.agent_name).join(', ')}
                     </span>
                   )}
-                </div>
+                  <span className="text-gray-400 text-xs ml-1">{isExp ? '▾' : '▸'}</span>
+                </button>
                 {/* Linked calls */}
-                <div className="divide-y divide-zinc-800">
-                  {(issue.calls || []).slice(0, 3).map(call => (
-                    <div key={call.id} className="px-4 py-2.5 flex items-start gap-3 bg-zinc-900/40 border-l-2 border-violet-500/30">
-                      <div className="flex-1 min-w-0 space-y-0.5">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-zinc-200 text-xs font-semibold">
-                            {call.customer_name || call.distributor_name || 'Unknown Customer'}
+                <div className="divide-y divide-gray-100">
+                  {callsToShow.map(call => (
+                    <div key={call.id} className="px-4 py-3 border-l-4 border-violet-400 hover:bg-violet-50/40 cursor-pointer transition-colors"
+                      onClick={() => setSelected(call)}>
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="text-gray-900 text-xs font-semibold">
+                          {call.customer_name || call.distributor_name || 'Unknown Customer'}
+                        </span>
+                        {call.order_number && (
+                          <span className="text-xs px-1.5 py-0 bg-amber-50 text-amber-700 rounded font-mono border border-amber-100">
+                            #{call.order_number}
                           </span>
-                          {call.order_number && (
-                            <span className="text-xs px-1.5 py-0 bg-zinc-700 text-amber-300 rounded font-mono border border-zinc-700/60">
-                              #{call.order_number}
-                            </span>
-                          )}
-                          <span className="text-zinc-500 text-xs">·</span>
-                          <span className="text-zinc-400 text-xs">{call.employee_name}</span>
-                          <DirectionPill direction={call.direction} />
-                          {call.flagged && <FlagBadge flagged={true} reason="" />}
-                          <span className="text-zinc-600 text-xs ml-auto">{fmtDate(call.recorded_at)}</span>
-                        </div>
-                        {call.details ? (
-                          <p className="text-amber-300/80 text-xs leading-relaxed line-clamp-1">{call.details}</p>
-                        ) : call.summary ? (
-                          <p className="text-zinc-500 text-xs leading-relaxed line-clamp-1">{call.summary}</p>
-                        ) : null}
+                        )}
+                        <span className="text-gray-400 text-xs">·</span>
+                        <span className="text-gray-500 text-xs">{call.employee_name}</span>
+                        <DirectionPill direction={call.direction} />
+                        {call.flagged && <FlagBadge flagged={true} reason="" />}
+                        <span className="text-gray-400 text-xs ml-auto">{fmtDate(call.recorded_at)}</span>
                       </div>
+                      {call.details ? (
+                        <p className={`text-amber-700 text-xs leading-relaxed ${isExp ? '' : 'line-clamp-2'}`}>{call.details}</p>
+                      ) : call.summary ? (
+                        <p className={`text-gray-500 text-xs leading-relaxed ${isExp ? '' : 'line-clamp-2'}`}>{call.summary}</p>
+                      ) : null}
                     </div>
                   ))}
-                  {(issue.calls || []).length > 3 && (
-                    <div className="px-4 py-2 bg-zinc-900/20">
-                      <button onClick={() => onNavigate('issues')} className="text-violet-400 hover:text-violet-300 text-xs transition-colors">
-                        +{issue.calls.length - 3} more calls →
+                  {!isExp && (issue.calls || []).length > 2 && (
+                    <div className="px-4 py-2 bg-gray-50">
+                      <button onClick={() => setExpandedIssue(issue.id)} className="text-violet-600 hover:text-violet-700 text-xs transition-colors">
+                        +{issue.calls.length - 2} more calls — click to expand ▸
                       </button>
                     </div>
                   )}
                 </div>
               </div>
-            ))}
+            );})
             {issues.length > 5 && (
-              <button onClick={() => onNavigate('issues')} className="w-full text-center text-violet-400 hover:text-violet-300 text-sm py-2 transition-colors">
+              <button onClick={() => onNavigate('issues')} className="w-full text-center text-violet-600 hover:text-violet-700 text-sm py-2 transition-colors">
                 View all {issues.length} issue categories →
               </button>
             )}
@@ -294,17 +304,17 @@ function DashboardTab({ onNavigate }) {
         return (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <h2 className="text-zinc-100 font-semibold text-lg">◉ Agent Overview</h2>
-              <button onClick={() => onNavigate('agents')} className="text-violet-400 hover:text-violet-300 text-sm transition-colors">
+              <h2 className="text-gray-900 font-semibold text-lg">◉ Agent Overview</h2>
+              <button onClick={() => onNavigate('agents')} className="text-violet-600 hover:text-violet-700 text-sm transition-colors">
                 Full breakdown →
               </button>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
               {agentList.map(([name, data]) => (
                 <button key={name} onClick={() => onNavigate('agents')}
-                  className="flex-shrink-0 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-left hover:border-violet-500/50 transition-colors min-w-[140px]">
-                  <p className="text-zinc-100 text-sm font-semibold truncate">{name}</p>
-                  <p className="text-zinc-400 text-xs mt-1">{data.calls} calls</p>
+                  className="flex-shrink-0 bg-white border border-gray-200 rounded-xl px-4 py-3 text-left hover:border-violet-500/50 transition-colors min-w-[140px]">
+                  <p className="text-gray-900 text-sm font-semibold truncate">{name}</p>
+                  <p className="text-gray-500 text-xs mt-1">{data.calls} calls</p>
                   {data.issues > 0 && (
                     <p className="text-amber-400 text-xs">{data.issues} issue call{data.issues !== 1 ? 's' : ''}</p>
                   )}
@@ -324,48 +334,48 @@ function DashboardTab({ onNavigate }) {
 
 function CallDetailModal({ call, onClose }) {
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto scrollbar-hide fade-in" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between p-5 border-b border-zinc-700">
+    <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white border border-gray-200 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto scrollbar-hide fade-in" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between p-5 border-b border-gray-300">
           <div>
-            <h2 className="text-zinc-100 font-semibold text-lg">{call.employee_name} → {call.distributor_name}</h2>
+            <h2 className="text-gray-900 font-semibold text-lg">{call.employee_name} → {call.distributor_name}</h2>
             <div className="flex items-center gap-2 mt-1">
               <DirectionPill direction={call.direction} />
-              <span className="text-zinc-400 text-sm">{fmtDuration(call.duration_seconds)}</span>
-              <span className="text-zinc-500 text-sm">{fmtDate(call.recorded_at)}</span>
+              <span className="text-gray-500 text-sm">{fmtDuration(call.duration_seconds)}</span>
+              <span className="text-gray-400 text-sm">{fmtDate(call.recorded_at)}</span>
             </div>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200 text-xl leading-none">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-xl leading-none">✕</button>
         </div>
         <div className="p-5 space-y-4">
           {call.flagged && (
-            <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-3 text-sm text-red-300">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">
               ⚑ <strong>Flagged:</strong> {call.flag_reason}
             </div>
           )}
           {call.summary && (
             <section>
-              <h3 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">Summary</h3>
-              <p className="text-zinc-200 text-sm leading-relaxed">{call.summary}</p>
+              <h3 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Summary</h3>
+              <p className="text-gray-800 text-sm leading-relaxed">{call.summary}</p>
             </section>
           )}
           {call.topics?.length > 0 && (
             <section>
-              <h3 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">Topics</h3>
+              <h3 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Topics</h3>
               <div className="flex flex-wrap gap-2">
                 {call.topics.map((t, i) => (
-                  <span key={i} className="px-2.5 py-1 bg-violet-900/50 text-violet-300 border border-violet-700/40 rounded-full text-xs">{t}</span>
+                  <span key={i} className="px-2.5 py-1 bg-violet-100 text-violet-700 border border-violet-200 rounded-full text-xs">{t}</span>
                 ))}
               </div>
             </section>
           )}
           {call.action_items?.length > 0 && (
             <section>
-              <h3 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">Action Items</h3>
+              <h3 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Action Items</h3>
               <ul className="space-y-1.5">
                 {call.action_items.map((a, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-300">
-                    <span className="text-violet-400 mt-0.5">◆</span>{a}
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                    <span className="text-violet-600 mt-0.5">◆</span>{a}
                   </li>
                 ))}
               </ul>
@@ -373,14 +383,14 @@ function CallDetailModal({ call, onClose }) {
           )}
           {call.transcript && (
             <section>
-              <h3 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">Transcript</h3>
-              <div className="bg-zinc-950/60 border border-zinc-800 rounded-lg p-3 text-zinc-300 text-sm leading-relaxed max-h-48 overflow-y-auto scrollbar-hide">
+              <h3 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Transcript</h3>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-700 text-sm leading-relaxed max-h-48 overflow-y-auto scrollbar-hide">
                 {call.transcript}
               </div>
             </section>
           )}
           {!call.summary && !call.transcript && (
-            <p className="text-zinc-500 text-sm text-center py-4">No AI analysis available for this call.</p>
+            <p className="text-gray-400 text-sm text-center py-4">No AI analysis available for this call.</p>
           )}
         </div>
       </div>
@@ -424,11 +434,11 @@ function CallLogTab() {
   return (
     <div className="space-y-4 fade-in">
       {/* Filter bar */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-wrap gap-3 items-center">
+      <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap gap-3 items-center">
         <select
           value={filters.employee}
           onChange={e => setFilters(f => ({ ...f, employee: e.target.value }))}
-          className="bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+          className="bg-white border border-gray-300 text-gray-900 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
         >
           <option value="">All Employees</option>
           {employees.map(e => <option key={e} value={e}>{e}</option>)}
@@ -436,14 +446,14 @@ function CallLogTab() {
         <select
           value={filters.direction}
           onChange={e => setFilters(f => ({ ...f, direction: e.target.value }))}
-          className="bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+          className="bg-white border border-gray-300 text-gray-900 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
         >
           <option value="">All Directions</option>
           <option>Inbound</option>
           <option>Outbound</option>
           <option>Missed</option>
         </select>
-        <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer select-none">
+        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={filters.flagged}
@@ -457,24 +467,24 @@ function CallLogTab() {
           placeholder="Search calls..."
           value={filters.search}
           onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-          className="bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500 w-48"
+          className="bg-white border border-gray-300 text-gray-900 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500 w-48"
         />
-        <span className="text-zinc-500 text-sm ml-auto">{calls.length} calls</span>
+        <span className="text-gray-400 text-sm ml-auto">{calls.length} calls</span>
       </div>
 
       {/* Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-32 gap-3">
-            <Spinner /><span className="text-zinc-400">Loading...</span>
+            <Spinner /><span className="text-gray-500">Loading...</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-900/80">
+                <tr className="border-b border-gray-200 bg-gray-50">
                   {['Employee', 'Distributor', 'Direction', 'Duration', 'Date', 'Topics', 'Status'].map(h => (
-                    <th key={h} className="text-left py-3 px-4 text-zinc-400 font-medium text-xs uppercase tracking-wide">{h}</th>
+                    <th key={h} className="text-left py-3 px-4 text-gray-500 font-medium text-xs uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -483,28 +493,28 @@ function CallLogTab() {
                   <React.Fragment key={call.id}>
                     <tr
                       onClick={() => toggle(call.id)}
-                      className={`border-b border-zinc-800 hover:bg-zinc-800/40 cursor-pointer transition-colors ${expanded === call.id ? 'bg-zinc-700/30' : ''}`}
+                      className={`border-b border-gray-200 hover:bg-gray-100/40 cursor-pointer transition-colors ${expanded === call.id ? 'bg-gray-100' : ''}`}
                     >
-                      <td className="py-3 px-4 text-zinc-200 font-medium">{call.employee_name}</td>
-                      <td className="py-3 px-4 text-zinc-300">{call.distributor_name}</td>
+                      <td className="py-3 px-4 text-gray-800 font-medium">{call.employee_name}</td>
+                      <td className="py-3 px-4 text-gray-700">{call.distributor_name}</td>
                       <td className="py-3 px-4"><DirectionPill direction={call.direction} /></td>
-                      <td className="py-3 px-4 text-zinc-400">{fmtDuration(call.duration_seconds)}</td>
-                      <td className="py-3 px-4 text-zinc-400 whitespace-nowrap">{fmtDate(call.recorded_at)}</td>
+                      <td className="py-3 px-4 text-gray-500">{fmtDuration(call.duration_seconds)}</td>
+                      <td className="py-3 px-4 text-gray-500 whitespace-nowrap">{fmtDate(call.recorded_at)}</td>
                       <td className="py-3 px-4">
                         <div className="flex flex-wrap gap-1">
                           {(call.topics || []).slice(0, 2).map((t, i) => (
-                            <span key={i} className="px-1.5 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs">{t}</span>
+                            <span key={i} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{t}</span>
                           ))}
                           {(call.topics || []).length > 2 && (
-                            <span className="text-zinc-500 text-xs">+{call.topics.length - 2}</span>
+                            <span className="text-gray-400 text-xs">+{call.topics.length - 2}</span>
                           )}
                         </div>
                       </td>
                       <td className="py-3 px-4"><FlagBadge flagged={call.flagged} reason={call.flag_reason} /></td>
                     </tr>
                     {expanded === call.id && (
-                      <tr className="border-b border-zinc-700">
-                        <td colSpan={7} className="bg-zinc-900/60 px-6 py-5">
+                      <tr className="border-b border-gray-300">
+                        <td colSpan={7} className="bg-gray-50 px-6 py-5">
                           <ExpandedCallDetail call={call} />
                         </td>
                       </tr>
@@ -514,7 +524,7 @@ function CallLogTab() {
               </tbody>
             </table>
             {calls.length === 0 && (
-              <p className="text-zinc-500 text-center py-12">No calls match your filters.</p>
+              <p className="text-gray-400 text-center py-12">No calls match your filters.</p>
             )}
           </div>
         )}
@@ -528,35 +538,35 @@ function ExpandedCallDetail({ call }) {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 fade-in">
       <div className="space-y-4">
         {call.flagged && (
-          <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-3 text-sm text-red-300">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">
             ⚑ <strong>Flagged:</strong> {call.flag_reason}
           </div>
         )}
         {call.summary ? (
           <div>
-            <h4 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">Summary</h4>
-            <p className="text-zinc-200 text-sm leading-relaxed">{call.summary}</p>
+            <h4 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Summary</h4>
+            <p className="text-gray-800 text-sm leading-relaxed">{call.summary}</p>
           </div>
         ) : (
-          <p className="text-zinc-500 text-sm italic">No summary available</p>
+          <p className="text-gray-400 text-sm italic">No summary available</p>
         )}
         {call.topics?.length > 0 && (
           <div>
-            <h4 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">Topics</h4>
+            <h4 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Topics</h4>
             <div className="flex flex-wrap gap-1.5">
               {call.topics.map((t, i) => (
-                <span key={i} className="px-2.5 py-1 bg-violet-900/50 text-violet-300 border border-violet-700/40 rounded-full text-xs">{t}</span>
+                <span key={i} className="px-2.5 py-1 bg-violet-100 text-violet-700 border border-violet-200 rounded-full text-xs">{t}</span>
               ))}
             </div>
           </div>
         )}
         {call.action_items?.length > 0 && (
           <div>
-            <h4 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">Action Items</h4>
+            <h4 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Action Items</h4>
             <ul className="space-y-1">
               {call.action_items.map((a, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-zinc-300">
-                  <span className="text-violet-400 mt-0.5 shrink-0">◆</span>{a}
+                <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                  <span className="text-violet-600 mt-0.5 shrink-0">◆</span>{a}
                 </li>
               ))}
             </ul>
@@ -564,13 +574,13 @@ function ExpandedCallDetail({ call }) {
         )}
       </div>
       <div>
-        <h4 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">Transcript</h4>
+        <h4 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Transcript</h4>
         {call.transcript ? (
-          <div className="bg-zinc-950/60 border border-zinc-800 rounded-lg p-3 text-zinc-300 text-sm leading-relaxed h-48 overflow-y-auto scrollbar-hide">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-700 text-sm leading-relaxed h-48 overflow-y-auto scrollbar-hide">
             {call.transcript}
           </div>
         ) : (
-          <div className="bg-zinc-950/60 border border-zinc-800 rounded-lg p-3 text-zinc-500 text-sm italic h-20 flex items-center justify-center">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-400 text-sm italic h-20 flex items-center justify-center">
             No transcript available
           </div>
         )}
@@ -646,8 +656,8 @@ function UploadTab() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 fade-in">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-5">
-        <h2 className="text-zinc-100 font-semibold text-lg">Upload Call Recording</h2>
+      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-5">
+        <h2 className="text-gray-900 font-semibold text-lg">Upload Call Recording</h2>
 
         {/* Drop zone */}
         <div
@@ -655,7 +665,7 @@ function UploadTab() {
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
           onClick={() => fileInput.current?.click()}
-          className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${dragging ? 'border-violet-400 bg-violet-900/20' : 'border-zinc-700 hover:border-zinc-500'}`}
+          className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${dragging ? 'border-violet-400 bg-violet-50' : 'border-gray-300 hover:border-gray-400'}`}
         >
           <input
             ref={fileInput}
@@ -666,14 +676,14 @@ function UploadTab() {
           />
           {file ? (
             <div>
-              <p className="text-emerald-400 font-medium">✓ {file.name}</p>
-              <p className="text-zinc-500 text-sm mt-1">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
+              <p className="text-emerald-600 font-medium">✓ {file.name}</p>
+              <p className="text-gray-400 text-sm mt-1">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
             </div>
           ) : (
             <div>
               <p className="text-4xl mb-2">🎙️</p>
-              <p className="text-zinc-300 font-medium">Drop audio file here or click to browse</p>
-              <p className="text-zinc-500 text-sm mt-1">MP3, WAV, M4A, OGG, WEBM — max 100MB</p>
+              <p className="text-gray-700 font-medium">Drop audio file here or click to browse</p>
+              <p className="text-gray-400 text-sm mt-1">MP3, WAV, M4A, OGG, WEBM — max 100MB</p>
             </div>
           )}
         </div>
@@ -681,31 +691,31 @@ function UploadTab() {
         {/* Form fields */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-zinc-400 text-sm mb-1">Employee Name *</label>
+            <label className="block text-gray-500 text-sm mb-1">Employee Name *</label>
             <input
               type="text"
               value={form.employee_name}
               onChange={e => setForm(f => ({ ...f, employee_name: e.target.value }))}
               placeholder="e.g. Usman Khan"
-              className="w-full bg-zinc-900 border border-zinc-700 text-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-violet-500"
+              className="w-full bg-white border border-gray-300 text-gray-800 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-violet-500"
             />
           </div>
           <div>
-            <label className="block text-zinc-400 text-sm mb-1">Distributor Name *</label>
+            <label className="block text-gray-500 text-sm mb-1">Distributor Name *</label>
             <input
               type="text"
               value={form.distributor_name}
               onChange={e => setForm(f => ({ ...f, distributor_name: e.target.value }))}
               placeholder="e.g. Ahmed Textile Mills"
-              className="w-full bg-zinc-900 border border-zinc-700 text-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-violet-500"
+              className="w-full bg-white border border-gray-300 text-gray-800 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-violet-500"
             />
           </div>
           <div>
-            <label className="block text-zinc-400 text-sm mb-1">Direction *</label>
+            <label className="block text-gray-500 text-sm mb-1">Direction *</label>
             <select
               value={form.direction}
               onChange={e => setForm(f => ({ ...f, direction: e.target.value }))}
-              className="w-full bg-zinc-900 border border-zinc-700 text-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-violet-500"
+              className="w-full bg-white border border-gray-300 text-gray-800 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-violet-500"
             >
               <option>Inbound</option>
               <option>Outbound</option>
@@ -713,20 +723,20 @@ function UploadTab() {
             </select>
           </div>
           <div>
-            <label className="block text-zinc-400 text-sm mb-1">Date & Time</label>
+            <label className="block text-gray-500 text-sm mb-1">Date & Time</label>
             <input
               type="datetime-local"
               value={form.recorded_at}
               onChange={e => setForm(f => ({ ...f, recorded_at: e.target.value }))}
-              className="w-full bg-zinc-900 border border-zinc-700 text-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-violet-500"
+              className="w-full bg-white border border-gray-300 text-gray-800 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-violet-500"
             />
           </div>
         </div>
 
-        {error && <p className="text-red-400 text-sm bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{error}</p>}
+        {error && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
 
         {progress && (
-          <div className="flex items-center gap-3 text-zinc-300 text-sm bg-zinc-900/50 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-3 text-gray-700 text-sm bg-gray-50 rounded-lg px-4 py-3">
             <Spinner />{progress}
           </div>
         )}
@@ -742,46 +752,46 @@ function UploadTab() {
 
       {/* Result */}
       {result && (
-        <div className="bg-zinc-800/50 border border-emerald-700/40 rounded-xl p-6 space-y-4 fade-in">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 space-y-4 fade-in">
           <div className="flex items-center gap-2">
-            <span className="text-emerald-400 text-xl">✓</span>
+            <span className="text-emerald-600 text-xl">✓</span>
             <h3 className="text-emerald-300 font-semibold">Call Saved Successfully</h3>
           </div>
           {result.summary && (
             <div>
-              <h4 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">AI Summary</h4>
-              <p className="text-zinc-200 text-sm leading-relaxed">{result.summary}</p>
+              <h4 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">AI Summary</h4>
+              <p className="text-gray-800 text-sm leading-relaxed">{result.summary}</p>
             </div>
           )}
           {result.topics?.length > 0 && (
             <div>
-              <h4 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">Topics Detected</h4>
+              <h4 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Topics Detected</h4>
               <div className="flex flex-wrap gap-2">
                 {result.topics.map((t, i) => (
-                  <span key={i} className="px-2.5 py-1 bg-violet-900/50 text-violet-300 border border-violet-700/40 rounded-full text-xs">{t}</span>
+                  <span key={i} className="px-2.5 py-1 bg-violet-100 text-violet-700 border border-violet-200 rounded-full text-xs">{t}</span>
                 ))}
               </div>
             </div>
           )}
           {result.action_items?.length > 0 && (
             <div>
-              <h4 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">Action Items</h4>
+              <h4 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Action Items</h4>
               <ul className="space-y-1">
                 {result.action_items.map((a, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-300">
-                    <span className="text-violet-400 mt-0.5 shrink-0">◆</span>{a}
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                    <span className="text-violet-600 mt-0.5 shrink-0">◆</span>{a}
                   </li>
                 ))}
               </ul>
             </div>
           )}
           {result.flagged && (
-            <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-3 text-sm text-red-300">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">
               ⚑ <strong>Flagged:</strong> {result.flag_reason}
             </div>
           )}
           {!result.summary && (
-            <p className="text-zinc-400 text-sm italic">
+            <p className="text-gray-500 text-sm italic">
               AI analysis in progress. Check the Call Log in a moment.
             </p>
           )}
@@ -794,9 +804,9 @@ function UploadTab() {
 // ── Issues Tab ────────────────────────────────────────────────────────────────
 
 const STATUS_STYLES = {
-  open:        'bg-red-900/50 text-red-300 border-red-700/50',
-  in_progress: 'bg-amber-900/50 text-amber-300 border-amber-700/50',
-  resolved:    'bg-emerald-900/50 text-emerald-300 border-emerald-700/50',
+  open:        'bg-red-50 text-red-600 border-red-200',
+  in_progress: 'bg-amber-50 text-amber-700 border-amber-200',
+  resolved:    'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 const STATUS_LABELS = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved' };
 
@@ -807,12 +817,20 @@ function IssuesTab() {
   const [analyzeMsg, setAnalyzeMsg] = useState('');
   const [expanded, setExpanded] = useState(null);
   const [editing, setEditing] = useState({});
+  const autoRan = useRef(false);
 
   const fetchIssues = () => {
     setLoading(true);
     fetch(`${API}/issues`)
       .then(r => r.json())
-      .then(data => setIssues(Array.isArray(data) ? data : []))
+      .then(data => {
+        const arr = Array.isArray(data) ? data : [];
+        setIssues(arr);
+        if (arr.length === 0 && !autoRan.current) {
+          autoRan.current = true;
+          runAnalyze();
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
@@ -866,17 +884,17 @@ function IssuesTab() {
   return (
     <div className="space-y-4 fade-in">
       {/* Header */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-wrap items-center gap-3">
+      <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap items-center gap-3">
         <div className="flex-1">
-          <h2 className="text-zinc-100 font-semibold">Issue Tracker</h2>
-          <p className="text-zinc-500 text-sm mt-0.5">AI clusters call transcripts into recurring issues with customer, order, and agent details.</p>
+          <h2 className="text-gray-900 font-semibold">Issue Tracker</h2>
+          <p className="text-gray-400 text-sm mt-0.5">AI clusters call transcripts into recurring issues with customer, order, and agent details.</p>
         </div>
         <button onClick={runAnalyze} disabled={analyzing}
           className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors">
           {analyzing ? <><Spinner /> Analysing...</> : '⟳ Re-analyse Calls'}
         </button>
         {analyzeMsg && (
-          <p className={`w-full text-sm px-3 py-2 rounded-lg ${analyzeMsg.startsWith('Error') ? 'bg-red-900/30 text-red-300' : 'bg-emerald-900/30 text-emerald-300'}`}>
+          <p className={`w-full text-sm px-3 py-2 rounded-lg ${analyzeMsg.startsWith('Error') ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'}`}>
             {analyzeMsg}
           </p>
         )}
@@ -893,19 +911,19 @@ function IssuesTab() {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center h-40 gap-3"><Spinner /><span className="text-zinc-400">Loading issues...</span></div>
+        <div className="flex items-center justify-center h-40 gap-3"><Spinner /><span className="text-gray-500">Loading issues...</span></div>
       ) : issues.length === 0 ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
-          <p className="text-zinc-400 text-lg font-medium">No issues analysed yet</p>
-          <p className="text-zinc-500 text-sm mt-2">Click "Re-analyse Calls" above to let AI cluster your call transcripts into issue categories.</p>
+        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+          <p className="text-gray-500 text-lg font-medium">No issues analysed yet</p>
+          <p className="text-gray-400 text-sm mt-2">Click "Re-analyse Calls" above to let AI cluster your call transcripts into issue categories.</p>
         </div>
       ) : (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-800 bg-zinc-900/80">
+              <tr className="border-b border-gray-200 bg-gray-50">
                 {['Issue Category', 'Calls', 'Agents Involved', 'Resolution', 'Status', ''].map(h => (
-                  <th key={h} className="text-left py-3 px-4 text-zinc-400 font-medium text-xs uppercase tracking-wide">{h}</th>
+                  <th key={h} className="text-left py-3 px-4 text-gray-500 font-medium text-xs uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -918,33 +936,33 @@ function IssuesTab() {
 
                 return (
                   <React.Fragment key={issue.id}>
-                    <tr className={`border-b border-zinc-800 hover:bg-zinc-800/20 transition-colors ${expanded === issue.id ? 'bg-zinc-700/20' : ''}`}>
+                    <tr className={`border-b border-gray-200 hover:bg-gray-50 transition-colors ${expanded === issue.id ? 'bg-gray-100' : ''}`}>
                       <td className="py-3 px-4">
                         <button onClick={() => setExpanded(prev => prev === issue.id ? null : issue.id)}
-                          className="text-zinc-100 font-semibold hover:text-violet-300 text-left transition-colors flex items-center gap-1.5">
+                          className="text-gray-900 font-semibold hover:text-violet-700 text-left transition-colors flex items-center gap-1.5">
                           <span>{expanded === issue.id ? '▾' : '▸'}</span> {issue.name}
                         </button>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-violet-900/60 text-violet-300 font-bold text-xs border border-violet-700/40">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-violet-100 text-violet-700 font-bold text-xs border border-violet-200">
                           {issue.call_count}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-zinc-300 text-xs">
+                      <td className="py-3 px-4 text-gray-700 text-xs">
                         {(issue.agents || []).length > 0
                           ? (issue.agents || []).map(a => (
-                              <span key={a.agent_name} className="inline-flex items-center gap-1 mr-1.5 mb-0.5 px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-300 border border-zinc-700/40">
-                                {a.agent_name} <span className="text-violet-400 font-bold">{a.call_count}</span>
+                              <span key={a.agent_name} className="inline-flex items-center gap-1 mr-1.5 mb-0.5 px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 border border-gray-200">
+                                {a.agent_name} <span className="text-violet-600 font-bold">{a.call_count}</span>
                               </span>
                             ))
-                          : <span className="text-zinc-500">—</span>
+                          : <span className="text-gray-400">—</span>
                         }
                       </td>
                       <td className="py-3 px-4 min-w-[180px]">
                         <input type="text" value={currentResolution}
                           onChange={e => setField(issue.id, 'resolution', e.target.value)}
                           placeholder="Add resolution..."
-                          className="w-full bg-zinc-900 border border-zinc-700 text-zinc-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-violet-500"
+                          className="w-full bg-white border border-gray-300 text-gray-800 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-violet-500"
                         />
                       </td>
                       <td className="py-3 px-4">
@@ -966,31 +984,31 @@ function IssuesTab() {
                     </tr>
 
                     {expanded === issue.id && (
-                      <tr className="border-b border-zinc-700">
-                        <td colSpan={6} className="bg-zinc-900/60 px-6 py-5">
+                      <tr className="border-b border-gray-300">
+                        <td colSpan={6} className="bg-gray-50 px-6 py-5">
                           <div className="space-y-5 fade-in">
                             {/* Agent breakdown */}
                             {(issue.agents || []).length > 0 && (
                               <div>
-                                <h4 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">Agent Breakdown</h4>
+                                <h4 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Agent Breakdown</h4>
                                 <table className="w-full text-sm">
                                   <thead>
-                                    <tr className="border-b border-zinc-700">
+                                    <tr className="border-b border-gray-300">
                                       {['Agent', 'Calls with this Issue', 'Last Seen'].map(h => (
-                                        <th key={h} className="text-left py-2 px-3 text-zinc-500 font-medium text-xs">{h}</th>
+                                        <th key={h} className="text-left py-2 px-3 text-gray-400 font-medium text-xs">{h}</th>
                                       ))}
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {issue.agents.map(a => (
-                                      <tr key={a.agent_name} className="border-b border-zinc-800">
-                                        <td className="py-2 px-3 text-zinc-200 font-medium">{a.agent_name}</td>
+                                      <tr key={a.agent_name} className="border-b border-gray-200">
+                                        <td className="py-2 px-3 text-gray-800 font-medium">{a.agent_name}</td>
                                         <td className="py-2 px-3">
-                                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-900/50 text-amber-300 font-bold text-xs border border-amber-700/40">
+                                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-900/50 text-amber-600 font-bold text-xs border border-amber-700/40">
                                             {a.call_count}
                                           </span>
                                         </td>
-                                        <td className="py-2 px-3 text-zinc-400 text-xs">{fmtDate(a.last_seen)}</td>
+                                        <td className="py-2 px-3 text-gray-500 text-xs">{fmtDate(a.last_seen)}</td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -1000,39 +1018,39 @@ function IssuesTab() {
 
                             {/* Linked calls */}
                             <div>
-                              <h4 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">
+                              <h4 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">
                                 Calls ({issue.calls?.length || 0})
                               </h4>
                               {issue.calls?.length > 0 ? (
                                 <div className="space-y-2">
                                   {issue.calls.map(call => (
-                                    <div key={call.id} className="bg-zinc-800/60 border border-zinc-800 rounded-lg p-3 space-y-1.5">
+                                    <div key={call.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1.5">
                                       <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-zinc-100 text-sm font-semibold">
+                                        <span className="text-gray-900 text-sm font-semibold">
                                           {call.customer_name || call.distributor_name || 'Unknown Customer'}
                                         </span>
                                         {call.order_number && (
-                                          <span className="text-xs px-1.5 py-0.5 bg-zinc-700 text-amber-300 rounded font-mono border border-zinc-700">
+                                          <span className="text-xs px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded font-mono border border-gray-300">
                                             Order #{call.order_number}
                                           </span>
                                         )}
-                                        <span className="text-zinc-500 text-xs">·</span>
-                                        <span className="text-zinc-300 text-xs">{call.employee_name}</span>
+                                        <span className="text-gray-400 text-xs">·</span>
+                                        <span className="text-gray-700 text-xs">{call.employee_name}</span>
                                         <DirectionPill direction={call.direction} />
-                                        <span className="text-zinc-500 text-xs ml-auto">{fmtDate(call.recorded_at)}</span>
+                                        <span className="text-gray-400 text-xs ml-auto">{fmtDate(call.recorded_at)}</span>
                                         {call.flagged ? <FlagBadge flagged={true} reason="" /> : null}
                                       </div>
                                       {call.details && (
-                                        <p className="text-amber-300/80 text-xs leading-relaxed">{call.details}</p>
+                                        <p className="text-amber-600/80 text-xs leading-relaxed">{call.details}</p>
                                       )}
                                       {!call.details && call.summary && (
-                                        <p className="text-zinc-400 text-xs leading-relaxed">{call.summary}</p>
+                                        <p className="text-gray-500 text-xs leading-relaxed">{call.summary}</p>
                                       )}
                                     </div>
                                   ))}
                                 </div>
                               ) : (
-                                <p className="text-zinc-500 text-sm italic">No calls linked — re-run analysis.</p>
+                                <p className="text-gray-400 text-sm italic">No calls linked — re-run analysis.</p>
                               )}
                             </div>
                           </div>
@@ -1120,40 +1138,40 @@ function SettingsTab() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 fade-in">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
+      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-zinc-100 font-semibold text-lg">Intellicon Sync</h2>
+          <h2 className="text-gray-900 font-semibold text-lg">Intellicon Sync</h2>
           <div className="flex items-center gap-2">
-            <span className={`w-2.5 h-2.5 rounded-full ${syncStatus?.wsConnected ? 'bg-emerald-400' : 'bg-zinc-500'}`} />
-            <span className="text-zinc-400 text-xs">{syncStatus?.wsConnected ? 'WebSocket live' : 'WebSocket offline'}</span>
+            <span className={`w-2.5 h-2.5 rounded-full ${syncStatus?.wsConnected ? 'bg-emerald-400' : 'bg-gray-300'}`} />
+            <span className="text-gray-500 text-xs">{syncStatus?.wsConnected ? 'WebSocket live' : 'WebSocket offline'}</span>
           </div>
         </div>
 
         {/* Config fields */}
         <div className="grid grid-cols-1 gap-3">
           <div>
-            <label className="block text-zinc-400 text-sm mb-1">Base URL</label>
-            <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-400 font-mono">
+            <label className="block text-gray-500 text-sm mb-1">Base URL</label>
+            <div className="bg-white border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-500 font-mono">
               {syncStatus?.configured ? 'https://diamondgroup.contegris.com' : 'INTELLICON_BASE_URL — not set in Railway Variables'}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-zinc-400 text-sm mb-1">Email</label>
-              <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-500">
+              <label className="block text-gray-500 text-sm mb-1">Email</label>
+              <div className="bg-white border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-400">
                 {syncStatus?.configured ? '••••••••••@•••••••' : 'INTELLICON_EMAIL — not set'}
               </div>
             </div>
             <div>
-              <label className="block text-zinc-400 text-sm mb-1">Password</label>
-              <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-500">
+              <label className="block text-gray-500 text-sm mb-1">Password</label>
+              <div className="bg-white border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-400">
                 {syncStatus?.configured ? '••••••••' : 'INTELLICON_PASSWORD — not set'}
               </div>
             </div>
           </div>
         </div>
 
-        <p className="text-zinc-500 text-xs">Add INTELLICON_BASE_URL, INTELLICON_EMAIL, INTELLICON_PASSWORD in Railway → Variables</p>
+        <p className="text-gray-400 text-xs">Add INTELLICON_BASE_URL, INTELLICON_EMAIL, INTELLICON_PASSWORD in Railway → Variables</p>
 
         {/* Manual sync */}
         <div className="flex items-center gap-3 pt-1">
@@ -1164,22 +1182,22 @@ function SettingsTab() {
           >
             {syncing ? <><Spinner /> Syncing...</> : '⟳ Sync Now'}
           </button>
-          {syncMsg && <span className={`text-sm ${syncMsg.startsWith('Error') ? 'text-red-400' : 'text-emerald-400'}`}>{syncMsg}</span>}
+          {syncMsg && <span className={`text-sm ${syncMsg.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>{syncMsg}</span>}
         </div>
 
         {/* Recent sync logs */}
         {syncStatus?.recentSyncs?.length > 0 && (
           <div>
-            <h3 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">Recent Sync Logs</h3>
+            <h3 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Recent Sync Logs</h3>
             <div className="space-y-1.5">
               {syncStatus.recentSyncs.map((s, i) => (
-                <div key={i} className="flex items-center gap-3 text-xs bg-zinc-900/50 rounded-lg px-3 py-2">
+                <div key={i} className="flex items-center gap-3 text-xs bg-gray-50 rounded-lg px-3 py-2">
                   <span className={`w-1.5 h-1.5 rounded-full ${s.status === 'ok' ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                  <span className="text-zinc-400">{new Date(s.synced_at).toLocaleString('en-PK', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                  <span className="text-zinc-300">+{s.calls_synced} synced</span>
-                  <span className="text-zinc-500">{s.calls_skipped} skipped</span>
-                  {s.calls_failed > 0 && <span className="text-red-400">{s.calls_failed} failed</span>}
-                  <span className={`ml-auto px-1.5 py-0.5 rounded text-xs ${s.status === 'ok' ? 'bg-emerald-900/40 text-emerald-400' : 'bg-red-900/40 text-red-400'}`}>{s.status}</span>
+                  <span className="text-gray-500">{new Date(s.synced_at).toLocaleString('en-PK', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="text-gray-700">+{s.calls_synced} synced</span>
+                  <span className="text-gray-400">{s.calls_skipped} skipped</span>
+                  {s.calls_failed > 0 && <span className="text-red-600">{s.calls_failed} failed</span>}
+                  <span className={`ml-auto px-1.5 py-0.5 rounded text-xs ${s.status === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>{s.status}</span>
                 </div>
               ))}
             </div>
@@ -1188,36 +1206,36 @@ function SettingsTab() {
       </div>
 
       {/* AI Reprocess */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
+      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-zinc-100 font-semibold text-lg">AI Processing</h2>
-            <p className="text-zinc-400 text-sm mt-1">
+            <h2 className="text-gray-900 font-semibold text-lg">AI Processing</h2>
+            <p className="text-gray-500 text-sm mt-1">
               Calls imported via the bookmarklet show as blank until their recording is uploaded and AI analysis runs.
-              Use <strong className="text-zinc-300">Re-analyse</strong> to retry any call that has a recording but no summary yet.
+              Use <strong className="text-gray-700">Re-analyse</strong> to retry any call that has a recording but no summary yet.
             </p>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-zinc-900/60 rounded-lg p-3 text-center">
-            <p className="text-zinc-400 text-xs">Total Calls</p>
-            <p className="text-zinc-100 text-xl font-bold mt-0.5">{calls}</p>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <p className="text-gray-500 text-xs">Total Calls</p>
+            <p className="text-gray-900 text-xl font-bold mt-0.5">{calls}</p>
           </div>
-          <div className="bg-zinc-900/60 rounded-lg p-3 text-center">
-            <p className="text-zinc-400 text-xs">Missing Recording</p>
-            <p className={`text-xl font-bold mt-0.5 ${pendingRecs > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <p className="text-gray-500 text-xs">Missing Recording</p>
+            <p className={`text-xl font-bold mt-0.5 ${pendingRecs > 0 ? 'text-amber-400' : 'text-emerald-600'}`}>
               {pendingRecs === null ? '…' : pendingRecs}
             </p>
           </div>
-          <div className="bg-zinc-900/60 rounded-lg p-3 text-center">
-            <p className="text-zinc-400 text-xs">Status</p>
-            <p className={`text-xs font-semibold mt-1.5 ${pendingRecs === 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <p className="text-gray-500 text-xs">Status</p>
+            <p className={`text-xs font-semibold mt-1.5 ${pendingRecs === 0 ? 'text-emerald-600' : 'text-amber-400'}`}>
               {pendingRecs === null ? '…' : pendingRecs === 0 ? 'All processed' : `${pendingRecs} need audio`}
             </p>
           </div>
         </div>
         {pendingRecs > 0 && (
-          <div className="bg-amber-950/40 border border-amber-800/50 rounded-lg p-3 text-amber-300 text-sm">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-700 text-sm">
             <strong>{pendingRecs} calls</strong> were imported but have no recording — their AI analysis is blank.
             Re-run the bookmarklet on each Intellicon page to upload recordings, or use the bookmarklet's
             <strong> ⟳ Auto All Pages</strong> on a fresh browser session.
@@ -1231,35 +1249,35 @@ function SettingsTab() {
           >
             {reprocessing ? 'Queuing…' : 'Re-analyse Calls with Recordings'}
           </button>
-          {reprocessMsg && <span className="text-sm text-emerald-400">{reprocessMsg}</span>}
+          {reprocessMsg && <span className="text-sm text-emerald-600">{reprocessMsg}</span>}
         </div>
-        <p className="text-zinc-500 text-xs">
+        <p className="text-gray-400 text-xs">
           This re-runs transcription + AI summary for up to 50 calls that have audio but no summary. Safe to run multiple times.
         </p>
       </div>
 
       {/* Bookmarklet */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
+      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
         <div>
-          <h2 className="text-zinc-100 font-semibold text-lg">Browser Sync Bookmarklet</h2>
-          <p className="text-zinc-400 text-sm mt-1">
+          <h2 className="text-gray-900 font-semibold text-lg">Browser Sync Bookmarklet</h2>
+          <p className="text-gray-500 text-sm mt-1">
             Can't whitelist the server IP? Use this bookmarklet instead. Click it while logged into
             Intellicon and it will pull today's calls and recordings directly into CallSync.
           </p>
         </div>
-        <div className="bg-zinc-900/60 border border-violet-700/40 rounded-xl p-4 space-y-3">
-          <p className="text-zinc-300 text-sm font-semibold">How to set up (one time):</p>
-          <ol className="text-zinc-400 text-sm space-y-1 list-decimal list-inside">
+        <div className="bg-gray-50 border border-violet-700/40 rounded-xl p-4 space-y-3">
+          <p className="text-gray-700 text-sm font-semibold">How to set up (one time):</p>
+          <ol className="text-gray-500 text-sm space-y-1 list-decimal list-inside">
             <li>Show your browser bookmarks bar (Ctrl+Shift+B)</li>
             <li>Drag the button below onto your bookmarks bar</li>
             <li>Done — it's saved as a bookmark</li>
           </ol>
-          <p className="text-zinc-300 text-sm font-semibold mt-2">How to use:</p>
-          <ol className="text-zinc-400 text-sm space-y-1 list-decimal list-inside">
-            <li>Log into Intellicon → open <strong className="text-zinc-300">Calls Report</strong> → wait for calls to load</li>
+          <p className="text-gray-700 text-sm font-semibold mt-2">How to use:</p>
+          <ol className="text-gray-500 text-sm space-y-1 list-decimal list-inside">
+            <li>Log into Intellicon → open <strong className="text-gray-700">Calls Report</strong> → wait for calls to load</li>
             <li>Click the bookmark → hit <strong className="text-emerald-300">⟳ Auto All Pages</strong> to collect all pages</li>
-            <li>When done, click <strong className="text-violet-300">✓ Import</strong></li>
-            <li><strong className="text-amber-300">For recordings:</strong> navigate back to page 1, re-click the bookmark, then click <strong className="text-violet-300">✓ Import</strong> again — it will upload recordings for calls that are missing them</li>
+            <li>When done, click <strong className="text-violet-600">✓ Import</strong></li>
+            <li><strong className="text-amber-600">For recordings:</strong> navigate back to page 1, re-click the bookmark, then click <strong className="text-violet-600">✓ Import</strong> again — it will upload recordings for calls that are missing them</li>
           </ol>
           <p className="text-amber-400/80 text-xs mt-2">Tip: recordings are uploaded page-by-page. Re-run the bookmarklet on each page to fill in missing audio.</p>
           <div className="pt-2">
@@ -1271,102 +1289,102 @@ function SettingsTab() {
             >
               ⬡ CallSync Sync
             </a>
-            <p className="text-zinc-500 text-xs mt-2">Drag this button to your bookmarks bar</p>
+            <p className="text-gray-400 text-xs mt-2">Drag this button to your bookmarks bar</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
-        <h2 className="text-zinc-100 font-semibold text-lg">SIP Trunk</h2>
-        <p className="text-zinc-400 text-sm">Configure your Nayatel SIP trunk for automatic call recording ingestion.</p>
+      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+        <h2 className="text-gray-900 font-semibold text-lg">SIP Trunk</h2>
+        <p className="text-gray-500 text-sm">Configure your Nayatel SIP trunk for automatic call recording ingestion.</p>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-zinc-400 text-sm mb-1">SIP Host</label>
+            <label className="block text-gray-500 text-sm mb-1">SIP Host</label>
             <input type="text" placeholder="sip.nayatel.com" readOnly
-              className="w-full bg-zinc-900 border border-zinc-700 text-zinc-500 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
+              className="w-full bg-white border border-gray-300 text-gray-400 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
           </div>
           <div>
-            <label className="block text-zinc-400 text-sm mb-1">SIP Port</label>
+            <label className="block text-gray-500 text-sm mb-1">SIP Port</label>
             <input type="text" placeholder="5060" readOnly
-              className="w-full bg-zinc-900 border border-zinc-700 text-zinc-500 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
+              className="w-full bg-white border border-gray-300 text-gray-400 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
           </div>
           <div>
-            <label className="block text-zinc-400 text-sm mb-1">Username</label>
+            <label className="block text-gray-500 text-sm mb-1">Username</label>
             <input type="text" placeholder="your_sip_username" readOnly
-              className="w-full bg-zinc-900 border border-zinc-700 text-zinc-500 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
+              className="w-full bg-white border border-gray-300 text-gray-400 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
           </div>
           <div>
-            <label className="block text-zinc-400 text-sm mb-1">Password</label>
+            <label className="block text-gray-500 text-sm mb-1">Password</label>
             <input type="password" placeholder="••••••••" readOnly
-              className="w-full bg-zinc-900 border border-zinc-700 text-zinc-500 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
+              className="w-full bg-white border border-gray-300 text-gray-400 rounded-lg px-3 py-2.5 text-sm cursor-not-allowed" />
           </div>
         </div>
-        <p className="text-zinc-500 text-xs">Add NAYATEL_SIP_HOST, NAYATEL_SIP_PORT, NAYATEL_SIP_USER, NAYATEL_SIP_PASS to .env</p>
+        <p className="text-gray-400 text-xs">Add NAYATEL_SIP_HOST, NAYATEL_SIP_PORT, NAYATEL_SIP_USER, NAYATEL_SIP_PASS to .env</p>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
-        <h2 className="text-zinc-100 font-semibold text-lg">AI Cost Calculator</h2>
-        <p className="text-zinc-400 text-sm">Estimated API costs based on your current usage.</p>
+      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+        <h2 className="text-gray-900 font-semibold text-lg">AI Cost Calculator</h2>
+        <p className="text-gray-500 text-sm">Estimated API costs based on your current usage.</p>
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-zinc-900/60 rounded-lg p-4">
-            <p className="text-zinc-400 text-xs uppercase tracking-wide">Total Calls Processed</p>
-            <p className="text-zinc-100 text-2xl font-bold mt-1">{calls}</p>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p className="text-gray-500 text-xs uppercase tracking-wide">Total Calls Processed</p>
+            <p className="text-gray-900 text-2xl font-bold mt-1">{calls}</p>
           </div>
-          <div className="bg-zinc-900/60 rounded-lg p-4">
-            <p className="text-zinc-400 text-xs uppercase tracking-wide">Est. AI Cost (USD)</p>
-            <p className="text-violet-300 text-2xl font-bold mt-1">${estimated}</p>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p className="text-gray-500 text-xs uppercase tracking-wide">Est. AI Cost (USD)</p>
+            <p className="text-violet-600 text-2xl font-bold mt-1">${estimated}</p>
           </div>
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-700">
-              <th className="text-left py-2 text-zinc-400 text-xs">Service</th>
-              <th className="text-left py-2 text-zinc-400 text-xs">Model</th>
-              <th className="text-right py-2 text-zinc-400 text-xs">Est. per call</th>
+            <tr className="border-b border-gray-300">
+              <th className="text-left py-2 text-gray-500 text-xs">Service</th>
+              <th className="text-left py-2 text-gray-500 text-xs">Model</th>
+              <th className="text-right py-2 text-gray-500 text-xs">Est. per call</th>
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b border-zinc-800">
-              <td className="py-2 text-zinc-300">Transcription</td>
-              <td className="py-2 text-zinc-400">Groq Whisper Large v3</td>
-              <td className="py-2 text-right text-zinc-300">~$0.001</td>
+            <tr className="border-b border-gray-200">
+              <td className="py-2 text-gray-700">Transcription</td>
+              <td className="py-2 text-gray-500">Groq Whisper Large v3</td>
+              <td className="py-2 text-right text-gray-700">~$0.001</td>
             </tr>
-            <tr className="border-b border-zinc-800">
-              <td className="py-2 text-zinc-300">Summarisation</td>
-              <td className="py-2 text-zinc-400">Claude Haiku 4.5</td>
-              <td className="py-2 text-right text-zinc-300">~$0.003</td>
+            <tr className="border-b border-gray-200">
+              <td className="py-2 text-gray-700">Summarisation</td>
+              <td className="py-2 text-gray-500">Claude Haiku 4.5</td>
+              <td className="py-2 text-right text-gray-700">~$0.003</td>
             </tr>
             <tr>
-              <td className="py-2 text-zinc-100 font-semibold">Total</td>
+              <td className="py-2 text-gray-900 font-semibold">Total</td>
               <td></td>
-              <td className="py-2 text-right text-violet-300 font-semibold">~$0.004</td>
+              <td className="py-2 text-right text-violet-600 font-semibold">~$0.004</td>
             </tr>
           </tbody>
         </table>
-        <div className="bg-zinc-900/40 rounded-lg p-3 text-zinc-400 text-xs">
-          💡 At current rates, processing 1,000 calls per month costs approximately <strong className="text-zinc-200">$4 USD (≈ PKR 1,100)</strong>.
+        <div className="bg-gray-50 rounded-lg p-3 text-gray-500 text-xs">
+          💡 At current rates, processing 1,000 calls per month costs approximately <strong className="text-gray-800">$4 USD (≈ PKR 1,100)</strong>.
         </div>
       </div>
 
       {/* Danger Zone */}
-      <div className="bg-zinc-900 border border-red-900/50 rounded-xl p-6 space-y-4">
+      <div className="bg-white border border-red-200 rounded-xl p-6 space-y-4">
         <div>
-          <h2 className="text-red-400 font-semibold text-lg">Danger Zone</h2>
-          <p className="text-zinc-400 text-sm mt-1">
+          <h2 className="text-red-600 font-semibold text-lg">Danger Zone</h2>
+          <p className="text-gray-500 text-sm mt-1">
             Permanently delete all calls, recordings references, and AI summaries from the database. Use this to start fresh if the dashboard shows stale or incorrect data.
           </p>
         </div>
         {!resetConfirm ? (
           <button
             onClick={() => setResetConfirm(true)}
-            className="bg-red-950 hover:bg-red-900 border border-red-800 text-red-400 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+            className="bg-red-50 hover:bg-red-100 border border-red-300 text-red-600 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
           >
             Reset All Data
           </button>
         ) : (
-          <div className="bg-red-950/40 border border-red-800/60 rounded-lg p-4 space-y-3">
-            <p className="text-red-300 text-sm font-semibold">Are you sure? This cannot be undone.</p>
-            <p className="text-zinc-400 text-xs">All {calls} calls and their AI analysis will be permanently deleted.</p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+            <p className="text-red-600 text-sm font-semibold">Are you sure? This cannot be undone.</p>
+            <p className="text-gray-500 text-xs">All {calls} calls and their AI analysis will be permanently deleted.</p>
             <div className="flex items-center gap-3">
               <button
                 onClick={runReset}
@@ -1377,14 +1395,14 @@ function SettingsTab() {
               </button>
               <button
                 onClick={() => setResetConfirm(false)}
-                className="text-zinc-400 hover:text-zinc-200 text-sm px-3 py-2"
+                className="text-gray-500 hover:text-gray-800 text-sm px-3 py-2"
               >
                 Cancel
               </button>
             </div>
           </div>
         )}
-        {resetMsg && <p className={`text-sm ${resetMsg.startsWith('Error') ? 'text-red-400' : 'text-emerald-400'}`}>{resetMsg}</p>}
+        {resetMsg && <p className={`text-sm ${resetMsg.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>{resetMsg}</p>}
       </div>
     </div>
   );
@@ -1416,25 +1434,25 @@ function AgentsTab() {
       </div>
 
       {/* Header */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-        <h2 className="text-zinc-100 font-semibold">Agent Issue Breakdown</h2>
-        <p className="text-zinc-500 text-sm mt-0.5">How many and which types of issues each agent has handled. Click a row to expand.</p>
+      <div className="bg-white border border-gray-200 rounded-xl p-4">
+        <h2 className="text-gray-900 font-semibold">Agent Issue Breakdown</h2>
+        <p className="text-gray-400 text-sm mt-0.5">How many and which types of issues each agent has handled. Click a row to expand.</p>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-40 gap-3"><Spinner /><span className="text-zinc-400">Loading agents...</span></div>
+        <div className="flex items-center justify-center h-40 gap-3"><Spinner /><span className="text-gray-500">Loading agents...</span></div>
       ) : agents.length === 0 ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
-          <p className="text-zinc-400 font-medium">No agents found</p>
-          <p className="text-zinc-500 text-sm mt-2">Import calls to see agent data here.</p>
+        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+          <p className="text-gray-500 font-medium">No agents found</p>
+          <p className="text-gray-400 text-sm mt-2">Import calls to see agent data here.</p>
         </div>
       ) : (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-800 bg-zinc-900/80">
+              <tr className="border-b border-gray-200 bg-gray-50">
                 {['Agent', 'Total Calls', 'Issues Found', 'Most Common Issue'].map(h => (
-                  <th key={h} className="text-left py-3 px-4 text-zinc-400 font-medium text-xs uppercase tracking-wide">{h}</th>
+                  <th key={h} className="text-left py-3 px-4 text-gray-500 font-medium text-xs uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -1443,45 +1461,45 @@ function AgentsTab() {
                 <React.Fragment key={agent.agent_name}>
                   <tr
                     onClick={() => setExpanded(prev => prev === agent.agent_name ? null : agent.agent_name)}
-                    className={`border-b border-zinc-800 hover:bg-zinc-800/30 cursor-pointer transition-colors ${expanded === agent.agent_name ? 'bg-zinc-700/20' : ''}`}
+                    className={`border-b border-gray-200 hover:bg-gray-100/30 cursor-pointer transition-colors ${expanded === agent.agent_name ? 'bg-gray-100' : ''}`}
                   >
-                    <td className="py-3 px-4 text-zinc-100 font-semibold flex items-center gap-2">
+                    <td className="py-3 px-4 text-gray-900 font-semibold flex items-center gap-2">
                       <span>{expanded === agent.agent_name ? '▾' : '▸'}</span> {agent.agent_name}
                     </td>
-                    <td className="py-3 px-4 text-zinc-300">{agent.total_calls}</td>
+                    <td className="py-3 px-4 text-gray-700">{agent.total_calls}</td>
                     <td className="py-3 px-4">
                       {agent.issue_type_count > 0 ? (
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-900/60 text-red-300 font-bold text-xs border border-red-700/40">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-50 text-red-600 font-bold text-xs border border-red-200">
                           {agent.issue_type_count}
                         </span>
                       ) : (
-                        <span className="text-emerald-400 text-xs font-medium">✓ Clean</span>
+                        <span className="text-emerald-600 text-xs font-medium">✓ Clean</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-zinc-400 text-xs">{agent.issues?.[0]?.name ?? '—'}</td>
+                    <td className="py-3 px-4 text-gray-500 text-xs">{agent.issues?.[0]?.name ?? '—'}</td>
                   </tr>
                   {expanded === agent.agent_name && (
-                    <tr className="border-b border-zinc-700">
-                      <td colSpan={4} className="bg-zinc-900/60 px-6 py-4">
+                    <tr className="border-b border-gray-300">
+                      <td colSpan={4} className="bg-gray-50 px-6 py-4">
                         {(agent.issues || []).length === 0 ? (
-                          <p className="text-zinc-500 text-sm italic">No issues found for this agent.</p>
+                          <p className="text-gray-400 text-sm italic">No issues found for this agent.</p>
                         ) : (
                           <div className="fade-in">
-                            <h4 className="text-zinc-400 text-xs uppercase tracking-wide font-semibold mb-2">Issue Breakdown</h4>
+                            <h4 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Issue Breakdown</h4>
                             <table className="w-full text-sm">
                               <thead>
-                                <tr className="border-b border-zinc-700">
+                                <tr className="border-b border-gray-300">
                                   {['Issue', 'Calls', 'Status'].map(h => (
-                                    <th key={h} className="text-left py-2 px-3 text-zinc-500 font-medium text-xs">{h}</th>
+                                    <th key={h} className="text-left py-2 px-3 text-gray-400 font-medium text-xs">{h}</th>
                                   ))}
                                 </tr>
                               </thead>
                               <tbody>
                                 {agent.issues.map(issue => (
-                                  <tr key={issue.id} className="border-b border-zinc-800">
-                                    <td className="py-2 px-3 text-zinc-200 font-medium">{issue.name}</td>
+                                  <tr key={issue.id} className="border-b border-gray-200">
+                                    <td className="py-2 px-3 text-gray-800 font-medium">{issue.name}</td>
                                     <td className="py-2 px-3">
-                                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-900/50 text-amber-300 font-bold text-xs border border-amber-700/40">
+                                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-900/50 text-amber-600 font-bold text-xs border border-amber-700/40">
                                         {issue.call_count}
                                       </span>
                                     </td>
@@ -1523,14 +1541,14 @@ function App() {
   const [tab, setTab] = useState('dashboard');
 
   return (
-    <div className="min-h-screen bg-[#09090b]">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="border-b border-zinc-800 bg-zinc-950/90 backdrop-blur-sm sticky top-0 z-40">
+      <header className="border-b border-gray-200 bg-white sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 bg-violet-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">C</div>
-            <span className="text-white font-bold text-lg tracking-tight">CallSync</span>
-            <span className="text-zinc-600 text-xs hidden sm:block">DiamondFoam</span>
+            <span className="text-gray-900 font-bold text-lg tracking-tight">CallSync</span>
+            <span className="text-gray-400 text-xs hidden sm:block">DiamondFoam</span>
           </div>
           <nav className="flex items-center gap-1">
             {TABS.map(t => (
@@ -1540,7 +1558,7 @@ function App() {
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   tab === t.id
                     ? 'bg-violet-600 text-white'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 }`}
               >
                 <span className="text-base leading-none">{t.icon}</span>
