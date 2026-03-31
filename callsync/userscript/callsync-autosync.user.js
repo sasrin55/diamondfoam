@@ -346,7 +346,7 @@
     const pc = scrapeTable();
     if (!pc || !pc.length) return 0;
     const seen = new Set(allCalls.map(c => c.interactionId));
-    const fresh = pc.filter(c => !seen.has(c.interactionId) && c.recordingUrl);
+    const fresh = pc.filter(c => !seen.has(c.interactionId));
     if (!fresh.length) return 0;
     allCalls = allCalls.concat(fresh);
     return fresh.length;
