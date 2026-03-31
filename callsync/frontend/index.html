@@ -1101,6 +1101,87 @@ function IssuesTab() {
   );
 }
 
+// ── Tampermonkey Card ─────────────────────────────────────────────────────────
+
+function TampermonkeyCard() {
+  const [copied, setCopied] = React.useState(false);
+  const [scriptText, setScriptText] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+
+  const copyScript = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/callsync-autosync.user.js');
+      const text = await res.text();
+      setScriptText(text);
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch (err) {
+      alert('Could not copy. Try opening /callsync-autosync.user.js and copying manually.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <h2 className="text-gray-900 font-semibold text-lg">Tampermonkey Auto-Sync</h2>
+        <span className="bg-violet-100 text-violet-700 text-xs font-semibold px-2 py-0.5 rounded-full">Recommended</span>
+      </div>
+      <p className="text-gray-500 text-sm">
+        Install once — syncs every call and recording automatically whenever you have Intellicon open. No clicking required.
+      </p>
+      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+        <p className="text-gray-700 text-sm font-semibold">How to set up (one time, ~2 minutes):</p>
+        <ol className="text-gray-600 text-sm space-y-2.5 list-decimal list-inside">
+          <li>
+            Install <strong className="text-gray-800">Tampermonkey</strong> for Chrome:{' '}
+            <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener" className="text-violet-600 hover:underline font-medium">tampermonkey.net</a>
+          </li>
+          <li>Click <strong className="text-gray-800">Copy Script</strong> below to copy the script to your clipboard</li>
+          <li>
+            Open <strong className="text-gray-800">Tampermonkey dashboard</strong> → click the{' '}
+            <strong className="text-gray-800">+</strong> tab to create a new script
+          </li>
+          <li>
+            Select all the placeholder code (<kbd className="bg-gray-200 text-gray-700 text-xs px-1.5 py-0.5 rounded">Ctrl+A</kbd>) and paste your clipboard (<kbd className="bg-gray-200 text-gray-700 text-xs px-1.5 py-0.5 rounded">Ctrl+V</kbd>)
+          </li>
+          <li>
+            Click <strong className="text-gray-800">File → Save</strong> (or <kbd className="bg-gray-200 text-gray-700 text-xs px-1.5 py-0.5 rounded">Ctrl+S</kbd>) — done
+          </li>
+        </ol>
+        <div className="flex items-center gap-3 pt-1">
+          <button
+            onClick={copyScript}
+            disabled={loading}
+            className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold px-5 py-2.5 rounded-lg transition-colors"
+          >
+            {loading ? <Spinner /> : copied ? '✓ Copied!' : '⎘ Copy Script'}
+          </button>
+          <a
+            href="/callsync-autosync.user.js"
+            target="_blank"
+            className="text-sm text-gray-500 hover:text-gray-700 underline"
+          >
+            View raw script
+          </a>
+        </div>
+        {copied && (
+          <p className="text-violet-600 text-xs font-medium">
+            Script copied! Now open Tampermonkey → + → select all → paste → save.
+          </p>
+        )}
+        <div className="bg-white border border-gray-200 rounded-lg p-3 text-gray-500 text-xs space-y-1 mt-2">
+          <p><strong className="text-gray-700">How it works:</strong> Runs silently on <code className="bg-gray-100 px-1 rounded">diamondgroup.contegris.com</code> — detects the calls table, scrapes all pages, downloads recordings, uploads to CallSync. Status badge shows in bottom-right corner.</p>
+          <p><strong className="text-gray-700">Cooldown:</strong> Runs at most once every 30 minutes to avoid duplicate imports.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Settings Tab ──────────────────────────────────────────────────────────────
 
 function SettingsTab() {
@@ -1290,44 +1371,7 @@ function SettingsTab() {
       </div>
 
       {/* Tampermonkey Auto-Sync */}
-      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-gray-900 font-semibold text-lg">Tampermonkey Auto-Sync</h2>
-              <span className="bg-violet-100 text-violet-700 text-xs font-semibold px-2 py-0.5 rounded-full">Recommended</span>
-            </div>
-            <p className="text-gray-500 text-sm mt-1">
-              Install once — it automatically syncs every call and recording to CallSync whenever you have Intellicon open. No clicking required.
-            </p>
-          </div>
-        </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
-          <p className="text-gray-700 text-sm font-semibold">How to set up (one time, ~2 minutes):</p>
-          <ol className="text-gray-600 text-sm space-y-2 list-decimal list-inside">
-            <li>
-              Install <strong className="text-gray-800">Tampermonkey</strong> — free browser extension:{' '}
-              <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener" className="text-violet-600 hover:underline">tampermonkey.net</a>
-            </li>
-            <li>Click the <strong className="text-gray-800">Install Script</strong> button below — your browser will open the script</li>
-            <li>Tampermonkey will show an install page — click <strong className="text-gray-800">Install</strong></li>
-            <li>Done. Open Intellicon as normal — calls sync automatically in the background</li>
-          </ol>
-          <div className="pt-1">
-            <a
-              href="/callsync-autosync.user.js"
-              target="_blank"
-              className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold px-5 py-2.5 rounded-lg transition-colors"
-            >
-              ↓ Install Script
-            </a>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-3 text-gray-500 text-xs space-y-1">
-            <p><strong className="text-gray-700">How it works:</strong> The script runs silently on <code className="bg-gray-100 px-1 rounded">diamondgroup.contegris.com</code> — when you open Intellicon it waits for the calls table, scrapes all pages, downloads recordings, and uploads everything to CallSync. A small status badge appears in the bottom-right corner.</p>
-            <p><strong className="text-gray-700">Cooldown:</strong> Auto-sync runs at most once every 30 minutes to avoid duplicate imports.</p>
-          </div>
-        </div>
-      </div>
+      <TampermonkeyCard />
 
       {/* Bookmarklet */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
