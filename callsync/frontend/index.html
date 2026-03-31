@@ -67,12 +67,11 @@ function Spinner() {
 
 // ── Stat Card ────────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, sub, color = 'violet' }) {
-  const val_colors = { violet: 'text-gray-900', emerald: 'text-gray-900', amber: 'text-gray-900', red: 'text-gray-900', indigo: 'text-gray-900' };
+function StatCard({ label, value, sub }) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-      <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">{label}</p>
-      <p className={`text-3xl font-bold mt-2 ${val_colors[color] || 'text-gray-900'}`}>{value}</p>
+      <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">{label}</p>
+      <p className="text-3xl font-bold mt-2 text-gray-900">{value}</p>
       {sub && <p className="text-gray-400 text-xs mt-1">{sub}</p>}
     </div>
   );
@@ -193,9 +192,9 @@ function DashboardTab({ onNavigate }) {
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Calls" value={stats?.total_calls ?? 0} color="violet" />
-        <StatCard label="Flagged Calls" value={stats?.flagged_calls ?? 0} sub="Need attention" color="red" />
-        <StatCard label="Open Issues" value={openIssues} sub={`${issues.length} categories total`} color="amber" />
-        <StatCard label="Agents with Issues" value={agentsWithIssues} sub={`${stats?.total_employees ?? 0} total agents`} color="amber" />
+        <StatCard label="AI Processed" value={stats?.total_calls ?? 0} sub="All calls have transcripts" color="violet" />
+        <StatCard label="Issue Categories" value={issues.length} sub={`${openIssues} open`} color="violet" />
+        <StatCard label="Agents" value={stats?.total_employees ?? 0} sub={`${agentsWithIssues} with issues`} color="violet" />
       </div>
 
       {/* Live Issues Feed */}
@@ -319,6 +318,45 @@ function DashboardTab({ onNavigate }) {
           </div>
         );
       })()}
+
+      {/* All recent calls */}
+      {recent.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-gray-900 font-semibold text-lg">Recent Calls</h2>
+            <button onClick={() => onNavigate('log')} className="text-violet-600 hover:text-violet-700 text-sm transition-colors">
+              View all →
+            </button>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  {['Employee', 'Distributor', 'Direction', 'Duration', 'Date', ''].map(h => (
+                    <th key={h} className="text-left py-2.5 px-4 text-gray-500 font-medium text-xs uppercase tracking-wide">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {recent.slice(0, 10).map(call => (
+                  <tr key={call.id} onClick={() => setSelected(call)}
+                    className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors last:border-0">
+                    <td className="py-2.5 px-4 text-gray-800 font-medium">{call.employee_name || '—'}</td>
+                    <td className="py-2.5 px-4 text-gray-600">{call.distributor_name || '—'}</td>
+                    <td className="py-2.5 px-4"><DirectionPill direction={call.direction} /></td>
+                    <td className="py-2.5 px-4 text-gray-500">{fmtDuration(call.duration_seconds)}</td>
+                    <td className="py-2.5 px-4 text-gray-400 whitespace-nowrap">{fmtDate(call.recorded_at)}</td>
+                    <td className="py-2.5 px-4 text-right">
+                      {call.flagged ? <FlagBadge flagged={true} reason={call.flag_reason} /> : null}
+                      {call.summary && <span className="text-gray-400 text-xs ml-2">transcript ▸</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {selected && <CallDetailModal call={selected} onClose={() => setSelected(null)} />}
     </div>
@@ -899,9 +937,9 @@ function IssuesTab() {
       {!loading && issues.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Issue Categories" value={issues.length} color="violet" />
-          <StatCard label="Open Issues" value={openCount} sub={`${issues.length - openCount} resolved/in progress`} color="red" />
-          <StatCard label="Most Affected Agent" value={mostAffectedAgent} sub={`${agentIssueCounts[mostAffectedAgent] ?? 0} issue calls`} color="amber" />
-          <StatCard label="Most Common Issue" value={issues[0]?.name ?? '—'} sub={`${issues[0]?.call_count ?? 0} calls`} color="red" />
+          <StatCard label="Open Issues" value={openCount} sub={`${issues.length - openCount} resolved/in progress`} color="violet" />
+          <StatCard label="Most Affected Agent" value={mostAffectedAgent} sub={`${agentIssueCounts[mostAffectedAgent] ?? 0} issue calls`} color="violet" />
+          <StatCard label="Most Common Issue" value={issues[0]?.name ?? '—'} sub={`${issues[0]?.call_count ?? 0} calls`} color="violet" />
         </div>
       )}
 
@@ -1425,7 +1463,7 @@ function AgentsTab() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-4">
         <StatCard label="Total Agents" value={agents.length} color="violet" />
-        <StatCard label="Agents with Issues" value={agentsWithIssues} sub="Based on AI analysis" color="amber" />
+        <StatCard label="Agents with Issues" value={agentsWithIssues} sub="Based on AI analysis" color="violet" />
       </div>
 
       {/* Header */}
