@@ -12,7 +12,7 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: 'Inter', system-ui, sans-serif; background: #f8fafc; color: #1e293b; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #f0f0f2; color: #1e293b; }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -43,22 +43,17 @@ function fmtDate(d) {
 }
 
 function DirectionPill({ direction }) {
-  const styles = {
-    Inbound: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-    Outbound: 'bg-blue-50 text-blue-700 border border-blue-200',
-    Missed: 'bg-red-50 text-red-600 border border-red-200',
-  };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[direction] || 'bg-gray-100 text-gray-600'}`}>
+    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
       {direction}
     </span>
   );
 }
 
 function FlagBadge({ flagged, reason }) {
-  if (!flagged) return <span className="text-gray-400 text-xs">—</span>;
+  if (!flagged) return null;
   return (
-    <span title={reason || ''} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600 border border-red-200">
+    <span title={reason || ''} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-white">
       ⚑ Flagged
     </span>
   );
@@ -73,7 +68,7 @@ function Spinner() {
 // ── Stat Card ────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, color = 'violet' }) {
-  const val_colors = { violet: 'text-violet-600', emerald: 'text-emerald-600', amber: 'text-amber-500', red: 'text-red-600', indigo: 'text-violet-600' };
+  const val_colors = { violet: 'text-gray-900', emerald: 'text-gray-900', amber: 'text-gray-900', red: 'text-gray-900', indigo: 'text-gray-900' };
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
       <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">{label}</p>
@@ -150,9 +145,9 @@ function RecentCallsTable({ calls, onSelect }) {
 // ── Shared constants ──────────────────────────────────────────────────────────
 
 const STATUS_STYLES_SHARED = {
-  open:        'bg-red-50 text-red-600 border-red-200',
-  in_progress: 'bg-amber-50 text-amber-700 border-amber-200',
-  resolved:    'bg-emerald-50 text-emerald-700 border-emerald-200',
+  open:        'bg-gray-100 text-gray-700 border-gray-300',
+  in_progress: 'bg-gray-100 text-gray-700 border-gray-300',
+  resolved:    'bg-gray-100 text-gray-500 border-gray-200',
 };
 const STATUS_LABELS_SHARED = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved' };
 
@@ -245,14 +240,14 @@ function DashboardTab({ onNavigate }) {
                 {/* Linked calls */}
                 <div className="divide-y divide-gray-100">
                   {callsToShow.map(call => (
-                    <div key={call.id} className="px-4 py-3 border-l-4 border-violet-400 hover:bg-violet-50/40 cursor-pointer transition-colors"
+                    <div key={call.id} className="px-4 py-3 border-l-4 border-gray-300 hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => setSelected(call)}>
                       <div className="flex flex-wrap items-center gap-2 mb-1">
                         <span className="text-gray-900 text-xs font-semibold">
                           {call.customer_name || call.distributor_name || 'Unknown Customer'}
                         </span>
                         {call.order_number && (
-                          <span className="text-xs px-1.5 py-0 bg-amber-50 text-amber-700 rounded font-mono border border-amber-100">
+                          <span className="text-xs px-1.5 py-0 bg-gray-100 text-gray-600 rounded font-mono border border-gray-200">
                             #{call.order_number}
                           </span>
                         )}
@@ -263,7 +258,7 @@ function DashboardTab({ onNavigate }) {
                         <span className="text-gray-400 text-xs ml-auto">{fmtDate(call.recorded_at)}</span>
                       </div>
                       {call.details ? (
-                        <p className={`text-amber-700 text-xs leading-relaxed ${isExp ? '' : 'line-clamp-2'}`}>{call.details}</p>
+                        <p className={`text-gray-600 text-xs leading-relaxed ${isExp ? '' : 'line-clamp-2'}`}>{call.details}</p>
                       ) : call.summary ? (
                         <p className={`text-gray-500 text-xs leading-relaxed ${isExp ? '' : 'line-clamp-2'}`}>{call.summary}</p>
                       ) : null}
@@ -316,7 +311,7 @@ function DashboardTab({ onNavigate }) {
                   <p className="text-gray-900 text-sm font-semibold truncate">{name}</p>
                   <p className="text-gray-500 text-xs mt-1">{data.calls} calls</p>
                   {data.issues > 0 && (
-                    <p className="text-amber-400 text-xs">{data.issues} issue call{data.issues !== 1 ? 's' : ''}</p>
+                    <p className="text-gray-500 text-xs">{data.issues} issue call{data.issues !== 1 ? 's' : ''}</p>
                   )}
                 </button>
               ))}
@@ -349,7 +344,7 @@ function CallDetailModal({ call, onClose }) {
         </div>
         <div className="p-5 space-y-4">
           {call.flagged && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
               ⚑ <strong>Flagged:</strong> {call.flag_reason}
             </div>
           )}
@@ -364,7 +359,7 @@ function CallDetailModal({ call, onClose }) {
               <h3 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Topics</h3>
               <div className="flex flex-wrap gap-2">
                 {call.topics.map((t, i) => (
-                  <span key={i} className="px-2.5 py-1 bg-violet-100 text-violet-700 border border-violet-200 rounded-full text-xs">{t}</span>
+                  <span key={i} className="px-2.5 py-1 bg-gray-100 text-gray-700 border border-gray-200 rounded-full text-xs">{t}</span>
                 ))}
               </div>
             </section>
@@ -375,7 +370,7 @@ function CallDetailModal({ call, onClose }) {
               <ul className="space-y-1.5">
                 {call.action_items.map((a, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-violet-600 mt-0.5">◆</span>{a}
+                    <span className="text-gray-400 mt-0.5">◆</span>{a}
                   </li>
                 ))}
               </ul>
@@ -538,7 +533,7 @@ function ExpandedCallDetail({ call }) {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 fade-in">
       <div className="space-y-4">
         {call.flagged && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
             ⚑ <strong>Flagged:</strong> {call.flag_reason}
           </div>
         )}
@@ -555,7 +550,7 @@ function ExpandedCallDetail({ call }) {
             <h4 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Topics</h4>
             <div className="flex flex-wrap gap-1.5">
               {call.topics.map((t, i) => (
-                <span key={i} className="px-2.5 py-1 bg-violet-100 text-violet-700 border border-violet-200 rounded-full text-xs">{t}</span>
+                <span key={i} className="px-2.5 py-1 bg-gray-100 text-gray-700 border border-gray-200 rounded-full text-xs">{t}</span>
               ))}
             </div>
           </div>
@@ -676,7 +671,7 @@ function UploadTab() {
           />
           {file ? (
             <div>
-              <p className="text-emerald-600 font-medium">✓ {file.name}</p>
+              <p className="text-gray-700 font-medium">✓ {file.name}</p>
               <p className="text-gray-400 text-sm mt-1">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
             </div>
           ) : (
@@ -733,7 +728,7 @@ function UploadTab() {
           </div>
         </div>
 
-        {error && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+        {error && <p className="text-gray-700 text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">{error}</p>}
 
         {progress && (
           <div className="flex items-center gap-3 text-gray-700 text-sm bg-gray-50 rounded-lg px-4 py-3">
@@ -752,10 +747,10 @@ function UploadTab() {
 
       {/* Result */}
       {result && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 space-y-4 fade-in">
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 space-y-4 fade-in">
           <div className="flex items-center gap-2">
-            <span className="text-emerald-600 text-xl">✓</span>
-            <h3 className="text-emerald-300 font-semibold">Call Saved Successfully</h3>
+            <span className="text-gray-700 text-xl">✓</span>
+            <h3 className="text-gray-900 font-semibold">Call Saved Successfully</h3>
           </div>
           {result.summary && (
             <div>
@@ -768,7 +763,7 @@ function UploadTab() {
               <h4 className="text-gray-500 text-xs uppercase tracking-wide font-semibold mb-2">Topics Detected</h4>
               <div className="flex flex-wrap gap-2">
                 {result.topics.map((t, i) => (
-                  <span key={i} className="px-2.5 py-1 bg-violet-100 text-violet-700 border border-violet-200 rounded-full text-xs">{t}</span>
+                  <span key={i} className="px-2.5 py-1 bg-gray-100 text-gray-700 border border-gray-200 rounded-full text-xs">{t}</span>
                 ))}
               </div>
             </div>
@@ -786,7 +781,7 @@ function UploadTab() {
             </div>
           )}
           {result.flagged && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
               ⚑ <strong>Flagged:</strong> {result.flag_reason}
             </div>
           )}
@@ -804,9 +799,9 @@ function UploadTab() {
 // ── Issues Tab ────────────────────────────────────────────────────────────────
 
 const STATUS_STYLES = {
-  open:        'bg-red-50 text-red-600 border-red-200',
-  in_progress: 'bg-amber-50 text-amber-700 border-amber-200',
-  resolved:    'bg-emerald-50 text-emerald-700 border-emerald-200',
+  open:        'bg-gray-100 text-gray-700 border-gray-300',
+  in_progress: 'bg-gray-100 text-gray-700 border-gray-300',
+  resolved:    'bg-gray-100 text-gray-500 border-gray-200',
 };
 const STATUS_LABELS = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved' };
 
@@ -894,7 +889,7 @@ function IssuesTab() {
           {analyzing ? <><Spinner /> Analysing...</> : '⟳ Re-analyse Calls'}
         </button>
         {analyzeMsg && (
-          <p className={`w-full text-sm px-3 py-2 rounded-lg ${analyzeMsg.startsWith('Error') ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'}`}>
+          <p className={`w-full text-sm px-3 py-2 rounded-lg ${analyzeMsg.startsWith('Error') ? 'bg-gray-100 text-gray-700 border border-gray-300' : 'bg-gray-100 text-gray-700 border border-gray-200'}`}>
             {analyzeMsg}
           </p>
         )}
@@ -1004,7 +999,7 @@ function IssuesTab() {
                                       <tr key={a.agent_name} className="border-b border-gray-200">
                                         <td className="py-2 px-3 text-gray-800 font-medium">{a.agent_name}</td>
                                         <td className="py-2 px-3">
-                                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-900/50 text-amber-600 font-bold text-xs border border-amber-700/40">
+                                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-gray-700 font-bold text-xs border border-gray-200">
                                             {a.call_count}
                                           </span>
                                         </td>
@@ -1030,7 +1025,7 @@ function IssuesTab() {
                                           {call.customer_name || call.distributor_name || 'Unknown Customer'}
                                         </span>
                                         {call.order_number && (
-                                          <span className="text-xs px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded font-mono border border-gray-300">
+                                          <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded font-mono border border-gray-200">
                                             Order #{call.order_number}
                                           </span>
                                         )}
@@ -1041,7 +1036,7 @@ function IssuesTab() {
                                         {call.flagged ? <FlagBadge flagged={true} reason="" /> : null}
                                       </div>
                                       {call.details && (
-                                        <p className="text-amber-600/80 text-xs leading-relaxed">{call.details}</p>
+                                        <p className="text-gray-600/80 text-xs leading-relaxed">{call.details}</p>
                                       )}
                                       {!call.details && call.summary && (
                                         <p className="text-gray-500 text-xs leading-relaxed">{call.summary}</p>
@@ -1182,7 +1177,7 @@ function SettingsTab() {
           >
             {syncing ? <><Spinner /> Syncing...</> : '⟳ Sync Now'}
           </button>
-          {syncMsg && <span className={`text-sm ${syncMsg.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>{syncMsg}</span>}
+          {syncMsg && <span className={`text-sm ${syncMsg.startsWith('Error') ? 'text-gray-700' : 'text-gray-700'}`}>{syncMsg}</span>}
         </div>
 
         {/* Recent sync logs */}
@@ -1196,8 +1191,8 @@ function SettingsTab() {
                   <span className="text-gray-500">{new Date(s.synced_at).toLocaleString('en-PK', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                   <span className="text-gray-700">+{s.calls_synced} synced</span>
                   <span className="text-gray-400">{s.calls_skipped} skipped</span>
-                  {s.calls_failed > 0 && <span className="text-red-600">{s.calls_failed} failed</span>}
-                  <span className={`ml-auto px-1.5 py-0.5 rounded text-xs ${s.status === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>{s.status}</span>
+                  {s.calls_failed > 0 && <span className="text-gray-700">{s.calls_failed} failed</span>}
+                  <span className={`ml-auto px-1.5 py-0.5 rounded text-xs ${s.status === 'ok' ? 'bg-gray-100 text-gray-700' : 'bg-gray-100 text-gray-700'}`}>{s.status}</span>
                 </div>
               ))}
             </div>
@@ -1223,19 +1218,19 @@ function SettingsTab() {
           </div>
           <div className="bg-gray-50 rounded-lg p-3 text-center">
             <p className="text-gray-500 text-xs">Missing Recording</p>
-            <p className={`text-xl font-bold mt-0.5 ${pendingRecs > 0 ? 'text-amber-400' : 'text-emerald-600'}`}>
+            <p className={`text-xl font-bold mt-0.5 ${pendingRecs > 0 ? 'text-gray-500' : 'text-gray-700'}`}>
               {pendingRecs === null ? '…' : pendingRecs}
             </p>
           </div>
           <div className="bg-gray-50 rounded-lg p-3 text-center">
             <p className="text-gray-500 text-xs">Status</p>
-            <p className={`text-xs font-semibold mt-1.5 ${pendingRecs === 0 ? 'text-emerald-600' : 'text-amber-400'}`}>
+            <p className={`text-xs font-semibold mt-1.5 ${pendingRecs === 0 ? 'text-gray-700' : 'text-gray-500'}`}>
               {pendingRecs === null ? '…' : pendingRecs === 0 ? 'All processed' : `${pendingRecs} need audio`}
             </p>
           </div>
         </div>
         {pendingRecs > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-700 text-sm">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-600 text-sm">
             <strong>{pendingRecs} calls</strong> were imported but have no recording — their AI analysis is blank.
             Re-run the bookmarklet on each Intellicon page to upload recordings, or use the bookmarklet's
             <strong> ⟳ Auto All Pages</strong> on a fresh browser session.
@@ -1249,7 +1244,7 @@ function SettingsTab() {
           >
             {reprocessing ? 'Queuing…' : 'Re-analyse Calls with Recordings'}
           </button>
-          {reprocessMsg && <span className="text-sm text-emerald-600">{reprocessMsg}</span>}
+          {reprocessMsg && <span className="text-sm text-gray-700">{reprocessMsg}</span>}
         </div>
         <p className="text-gray-400 text-xs">
           This re-runs transcription + AI summary for up to 50 calls that have audio but no summary. Safe to run multiple times.
@@ -1275,11 +1270,11 @@ function SettingsTab() {
           <p className="text-gray-700 text-sm font-semibold mt-2">How to use:</p>
           <ol className="text-gray-500 text-sm space-y-1 list-decimal list-inside">
             <li>Log into Intellicon → open <strong className="text-gray-700">Calls Report</strong> → wait for calls to load</li>
-            <li>Click the bookmark → hit <strong className="text-emerald-300">⟳ Auto All Pages</strong> to collect all pages</li>
+            <li>Click the bookmark → hit <strong className="text-gray-700">⟳ Auto All Pages</strong> to collect all pages</li>
             <li>When done, click <strong className="text-violet-600">✓ Import</strong></li>
-            <li><strong className="text-amber-600">For recordings:</strong> navigate back to page 1, re-click the bookmark, then click <strong className="text-violet-600">✓ Import</strong> again — it will upload recordings for calls that are missing them</li>
+            <li><strong className="text-gray-600">For recordings:</strong> navigate back to page 1, re-click the bookmark, then click <strong className="text-violet-600">✓ Import</strong> again — it will upload recordings for calls that are missing them</li>
           </ol>
-          <p className="text-amber-400/80 text-xs mt-2">Tip: recordings are uploaded page-by-page. Re-run the bookmarklet on each page to fill in missing audio.</p>
+          <p className="text-gray-500/80 text-xs mt-2">Tip: recordings are uploaded page-by-page. Re-run the bookmarklet on each page to fill in missing audio.</p>
           <div className="pt-2">
             <a
               href={`javascript:(function(){var API='https://diamondfoam-production.up.railway.app/api';var el=document.createElement('div');el.setAttribute('style','position:fixed;top:16px;right:16px;background:%231e293b;color:%23e2e8f0;padding:16px 20px;border-radius:12px;z-index:2147483647;font-family:sans-serif;font-size:13px;min-width:320px;border:1px solid %23334155;box-shadow:0 4px 24px rgba(0,0,0,.7);line-height:1.7');document.body.appendChild(el);var hooked=true,origFetch=window.fetch,origXHR=window.XMLHttpRequest;function log(m){el.innerHTML='<b style="color:%2394a3b8">CallSync Sync</b><br>'+m;}function unhook(){hooked=false;window.fetch=origFetch;window.XMLHttpRequest=origXHR;}function isCallUrl(u){return u.includes('call_center')||u.includes('report/call')||u.includes('/interactions')||u.includes('/cdr')||u.includes('callHistory')||u.includes('call_history');}function parseDur(s){if(!s||s==='N/A')return 0;var p=s.split(':');if(p.length===3)return parseInt(p[0])*3600+parseInt(p[1])*60+parseInt(p[2]);if(p.length===2)return parseInt(p[0])*60+parseInt(p[1]);return parseInt(s)||0;}function parseDt(s){if(!s||s==='N/A'||s==='0000-00-00 00:00:00')return new Date().toISOString();var d=new Date(s.replace(' ','T'));if(!isNaN(d))return d.toISOString();var m=String(s).match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})/);if(m)return new Date(m[3],parseInt(m[2])-1,parseInt(m[1])).toISOString();return new Date().toISOString();}function mapDir(s){if(!s)return 'Inbound';var l=s.toLowerCase();if(l.includes('out'))return 'Outbound';if(l.includes('miss')||l.includes('abandon'))return 'Missed';return 'Inbound';}function getAudioUrl(cell){if(!cell)return '';function isAudioUrl(s){return s&&typeof s==='string'&&(s.startsWith('http')||s.startsWith('/'))&&(s.length>4)&&(/\\.(mp3|wav|ogg|m4a|webm)/i.test(s)||/\\/recording/i.test(s)||/\\/audio/i.test(s)||/\\/sounds/i.test(s))&&!s.startsWith('data:')&&!s.startsWith('blob:blob:');}var ae=cell.querySelector('audio');if(ae){var s=ae.src||ae.currentSrc||ae.getAttribute('src')||ae.getAttribute('data-src')||'';if(isAudioUrl(s))return s;}var src2=cell.querySelector('audio source');if(src2){var s=src2.src||src2.getAttribute('src')||'';if(isAudioUrl(s))return s;}var le=cell.querySelector('a[href]');if(le&&isAudioUrl(le.href))return le.href;var allEls=Array.from(cell.querySelectorAll('*'));for(var ei=0;ei<allEls.length;ei++){var el=allEls[ei];for(var ai=0;ai<el.attributes.length;ai++){var av=el.attributes[ai].value||'';if(isAudioUrl(av))return av;}var oc=el.getAttribute('onclick')||el.getAttribute('ng-click')||el.getAttribute('@click')||el.getAttribute('v-on:click')||el.getAttribute('data-action')||'';if(oc){var mm=oc.match(/['\"]((?:https?:\\/\\/|\\/)(?:[^'\"\\s]+))['\"](?=[^)]*(?:mp3|wav|ogg|m4a|record|audio|sound))/i)||oc.match(/['\"]([^'\"]+(?:mp3|wav|ogg|m4a))['\"](?=[^)]*\\))/i);if(mm&&isAudioUrl(mm[1]))return mm[1];}try{if(el.__vue__){var vm=el.__vue__;var toCheck=[vm.$props,vm.$data,vm._props,vm._data];for(var ti=0;ti<toCheck.length;ti++){if(!toCheck[ti])continue;for(var k in toCheck[ti]){var v=toCheck[ti][k];if(isAudioUrl(v))return v;if(v&&typeof v==='object'){for(var k2 in v){if(isAudioUrl(v[k2]))return v[k2];}}}}}if(el._component){var cp=el._component;var toCheck2=[cp.props,cp.data];for(var ti2=0;ti2<toCheck2.length;ti2++){if(!toCheck2[ti2])continue;for(var k3 in toCheck2[ti2]){if(isAudioUrl(toCheck2[ti2][k3]))return toCheck2[ti2][k3];}}}}catch(e){}var innerHtml=el.innerHTML||'';if(innerHtml.length<2000){var urlMatch=innerHtml.match(/(?:https?:\\/\\/|(?=[^'\"<>\\s]*\\/))[^'\"<>\\s]*(?:mp3|wav|ogg|m4a|webm)/i);if(urlMatch&&isAudioUrl(urlMatch[0]))return urlMatch[0];}}return '';}async function uploadRec(recUrl,iid){var ar=await origFetch(recUrl,{credentials:'include'});if(!ar.ok)return false;var blob=await ar.blob();var fd=new FormData();fd.append('audio',blob,iid+'.mp3');fd.append('interaction_id',iid);fd.append('defer','true');await origFetch(API+'/calls/recording',{method:'POST',body:fd});return true;}async function tryUploadRec(raw,iid){if(!raw||!iid)return false;if(raw.recordingUrl){var ok=await uploadRec(raw.recordingUrl,iid);if(ok)return true;}var d=new Date(raw.createdAt||new Date().toISOString());var du='/intellicon/sounds/recording/'+d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+'/';try{var lr=await origFetch(du,{credentials:'include'});if(lr.ok){var html=await lr.text();var m=html.match(new RegExp('[\\\\w.-]*'+iid+'[\\\\w.-]*\\\\.(?:mp3|wav|ogg)','i'));if(m)return await uploadRec(du+m[0],iid);}}catch(e){}return false;}async function sendCalls(calls){log('Importing '+calls.length+' calls...');var ir=await origFetch(API+'/calls/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({calls:calls})});var res=await ir.json();if(!ir.ok)throw new Error(res.error||'Import failed');var pendingIds=new Set();try{var pr=await origFetch(API+'/calls/pending-recordings');var pendingRows=await pr.json();if(Array.isArray(pendingRows))pendingRows.forEach(function(p){pendingIds.add(String(p.interaction_id));});}catch(e){}var recTargets=[];(res.newCalls||[]).forEach(function(nc){recTargets.push({interactionId:nc.interactionId,isNew:true});});calls.forEach(function(c){var iid=String(c.interactionId||'');if(iid&&pendingIds.has(iid)&&!recTargets.find(function(r){return r.interactionId===iid;})){recTargets.push({interactionId:iid,isNew:false});}});if(recTargets.length===0){log('\\u2713 All '+(res.skipped||0)+' calls already synced &amp; processed!');setTimeout(function(){el.remove();},5000);return;}log((res.synced||0)+' new calls saved. Uploading recordings ('+(recTargets.length)+')...');var done=0;for(var i=0;i<recTargets.length;i++){var nc=recTargets[i];try{var raw=calls.find(function(c){return String(c.interactionId||c.interaction_id||c._id||c.id)===nc.interactionId;})||{};var uploaded=await tryUploadRec(raw,nc.interactionId);if(uploaded){done++;log((res.synced||0)+' saved. Recordings: '+done+'/'+recTargets.length+'...');}}catch(e){console.warn('Rec error:',e);}}if(done>0){log('\\u23f3 '+(res.synced||0)+' saved, '+done+' recordings uploaded. Starting AI...');try{await origFetch(API+'/calls/reprocess-all',{method:'POST'});}catch(e){}}log('\\u2713 Done! '+(res.synced||0)+' new, '+done+' recordings. AI pipeline started.');setTimeout(function(){el.remove();},9000);}function handleData(text){try{var data=JSON.parse(text);var calls=Array.isArray(data)?data:(data.data||data.calls||data.records||data.interactions||data.result||[]);if(Array.isArray(calls)&&calls.length>0&&(calls[0].interactionId||calls[0].interaction_id||calls[0]._id||calls[0].id||calls[0].callId)){unhook();sendCalls(calls).catch(function(e){log('\\u274c '+e.message);setTimeout(function(){el.remove();},8000);});return true;}}catch(e){}return false;}window.fetch=async function(){var res=await origFetch.apply(this,arguments);var url=String(arguments[0]||'');if(hooked&&isCallUrl(url)){try{res.clone().text().then(function(t){handleData(t);});}catch(e){}}return res;};function HXR(){var xhr=new origXHR(),ou=xhr.open.bind(xhr),cu='';xhr.open=function(m,url){cu=url;return ou.apply(this,arguments);};xhr.addEventListener('load',function(){if(hooked&&isCallUrl(cu))handleData(xhr.responseText);});return xhr;}window.XMLHttpRequest=HXR;function scrapeTable(){var tbl=null,maxRows=0;document.querySelectorAll('table').forEach(function(t){var n=t.querySelectorAll('tbody tr').length;if(n>maxRows){maxRows=n;tbl=t;}});if(!tbl||maxRows===0)return null;var cols={};Array.from(tbl.querySelectorAll('thead th,thead td,tr:first-child th,tr:first-child td')).forEach(function(th,i){var h=th.textContent.trim().toLowerCase();if(h==='date')cols.date=i;else if(h==='interaction id')cols.id=i;else if(h==='did/dod')cols.did=i;else if(h==='cli/dst')cols.cli=i;else if(h==='direction')cols.direction=i;else if(h==='queue')cols.queue=i;else if(h==='agent(s)')cols.agent=i;else if(h==='duration')cols.duration=i;else if(h==='audio')cols.audio=i;});var ts=Date.now();var rows=Array.from(tbl.querySelectorAll('tbody tr'));var calls=rows.map(function(row,idx){var cells=row.querySelectorAll('td');function cv(k){var v=cols[k]!==undefined&&cells[cols[k]]?cells[cols[k]].textContent.trim():'';return v==='N/A'?'':v;}var iid=cv('id')||([cv('date'),cv('cli')||cv('did'),cv('duration'),cv('agent')].filter(Boolean).join('|')||('row_'+idx));var recUrl=cols.audio!==undefined?getAudioUrl(cells[cols.audio]):null;return{interactionId:iid,createdAt:parseDt(cv('date')),did:cv('did'),cli:cv('cli'),direction:mapDir(cv('direction')),agentName:cv('agent')||null,queueName:cv('queue')||null,duration:parseDur(cv('duration')),recordingUrl:recUrl||undefined};}).filter(function(c){return c.interactionId;});return calls.length>0?calls:null;}var allCalls=[],monTimer=null;function getPageInfo(){var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null,false);var n;while(n=w.nextNode()){var m=n.textContent.match(/(\\d+)-(\\d+)\\s+of\\s+(\\d+)/);if(m){var s=parseInt(m[1]),e=parseInt(m[2]),tot=parseInt(m[3]),ps=e-s+1;return{start:s,end:e,total:tot,pageSize:ps,currentPage:Math.ceil(e/ps),totalPages:Math.ceil(tot/ps)};}}return null;}function countAudio(){var tbl=null,mx=0;document.querySelectorAll('table').forEach(function(t){var n=t.querySelectorAll('tbody tr').length;if(n>mx){mx=n;tbl=t;}});if(!tbl)return null;var total=0,loaded=0;tbl.querySelectorAll('tbody tr').forEach(function(row){row.querySelectorAll('td').forEach(function(td){if(td.querySelector('audio')||td.querySelector('[class*=play],[class*=audio],[class*=record]')){total++;if(getAudioUrl(td))loaded++;}});});return{loaded:loaded,total:total};}function startMonitor(){if(monTimer)clearInterval(monTimer);monTimer=setInterval(function(){var c=countAudio();var pi=getPageInfo();var e1=document.getElementById('_csrc');var e2=document.getElementById('_cspg');if(e1&&c){var done=c.loaded===c.total&&c.total>0;e1.style.color=done?'#86efac':'#93c5fd';e1.textContent='\\uD83C\\uDF99 '+c.loaded+' / '+c.total+' recordings ready'+(done?' \\u2713':'...');}if(e2&&pi){var left=pi.totalPages-pi.currentPage;e2.textContent='\\uD83D\\uDCC4 Page '+pi.currentPage+' of '+pi.totalPages+(left>0?' \\u00b7 '+left+' page'+(left>1?'s':'')+' left':' \\u00b7 last page');}},400);}function stopMonitor(){if(monTimer){clearInterval(monTimer);monTimer=null;}}function setUI(){var wa=allCalls.filter(function(c){return c.recordingUrl;}).length;var last=isLastPage();var hint=allCalls.length===0?'Click \\u27f3 Auto All Pages to collect all pages automatically':(last?'\\u2713 All pages collected \\u2014 click \\u2713 Import to finish!':'Page collected \\u2014 keep clicking \\u25b6 Next or use \\u27f3 Auto All Pages');el.innerHTML='<b style="color:#94a3b8">CallSync</b><br><span style="color:#e2e8f0;font-size:15px;font-weight:bold">'+allCalls.length+'</span><span style="color:#94a3b8;font-size:12px"> calls collected</span>'+(wa?' <span style="color:#64748b;font-size:11px">('+wa+' have recordings)</span>':'')+'<div id="_cspg" style="color:#94a3b8;font-size:11px;margin-top:3px">\\uD83D\\uDCC4 scanning...</div><div id="_csrc" style="color:#93c5fd;font-size:11px;margin-top:2px">\\uD83C\\uDF99 scanning...</div><div style="margin-top:9px;padding-top:8px;border-top:1px solid #1e293b"><div style="color:#94a3b8;font-size:11px;font-weight:600;margin-bottom:4px">Steps to get recordings:</div><div style="font-size:11px;color:#64748b;line-height:1.9"><span style="color:#22c55e;font-weight:700">\\u2460</span> Wait for <b style="color:#86efac">recordings ready \\u2713</b> (green)<br><span style="color:#22c55e;font-weight:700">\\u2461</span> Click <b style="color:#86efac">\\u27f3 Auto All Pages</b> <span style="color:#475569">(handles all pages at once)</span><br><span style="color:#22c55e;font-weight:700">\\u2462</span> Click <b>\\u2713 Import</b> \\u2014 recordings upload automatically<br><span style="color:#475569;font-size:10px">Note: not all calls have recordings (missed/short calls do not)</span></div></div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button id="_csa" style="background:#064e3b;color:#86efac;border:1px solid #059669;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">\\u27f3 Auto All Pages</button><button id="_csn" style="background:#1e3a5f;color:#93c5fd;border:1px solid #1d4ed8;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600">\\u25b6 Next</button><button id="_csi" style="background:#4f46e5;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:bold">\\u2713 Import</button></div><div id="_csm" style="color:#64748b;font-size:11px;margin-top:6px">'+hint+'</div>';document.getElementById('_csa').onclick=doAuto;document.getElementById('_csn').onclick=doNext;document.getElementById('_csi').onclick=doImport;startMonitor();}function msg(m,c){var e2=document.getElementById('_csm');if(e2){e2.style.color=c||'#64748b';e2.textContent=m;}}async function primeAudioPlayers(){var tbl=null,maxRows=0;document.querySelectorAll('table').forEach(function(t){var n=t.querySelectorAll('tbody tr').length;if(n>maxRows){maxRows=n;tbl=t;}});if(!tbl)return;var cells=[];tbl.querySelectorAll('tbody tr').forEach(function(row){row.querySelectorAll('td').forEach(function(td){if((td.querySelector('audio')||td.querySelector('[class*=play],[class*=audio],[class*=record]'))&&!getAudioUrl(td)){cells.push(td);}});});if(!cells.length)return;msg('Activating '+cells.length+' audio players...','#93c5fd');cells.forEach(function(td){var ae=td.querySelector('audio');if(ae){ae.muted=true;ae.volume=0;}});cells.forEach(function(td){var btn=td.querySelector('button')||td.querySelector('[class*=play]')||td.querySelector('i');if(btn)try{btn.click();}catch(e){};});await new Promise(function(r){setTimeout(r,700);});cells.forEach(function(td){var ae=td.querySelector('audio');if(ae)try{ae.pause();ae.currentTime=0;}catch(e){};});}async function addPage(){await primeAudioPlayers();var pc=scrapeTable();if(!pc||!pc.length){msg('No calls found on this page.');return 0;}var ex=new Set(allCalls.map(function(c){return c.interactionId;}));var nv=pc.filter(function(c){return!ex.has(c.interactionId)&&c.recordingUrl;});if(!nv.length){msg('All calls on this page already collected.');return 0;}allCalls=allCalls.concat(nv);setUI();return nv.length;}function isLastPage(){var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null,false);var n;while(n=w.nextNode()){var m=n.textContent.match(/(\\d+)-(\\d+)\\s+of\\s+(\\d+)/);if(m){return parseInt(m[2])>=parseInt(m[3]);}}return false;}async function doNext(){var b=document.getElementById('_csn');if(b)b.disabled=true;var pc=scrapeTable();var pf=pc&&pc.length?pc[0].interactionId:null;await addPage();if(isLastPage()){msg('\\u2713 Last page \\u2014 click \\u2713 Import when ready.','#22c55e');if(b)b.disabled=false;return;}var nb=findNextBtn();if(nb){nb.click();msg('Navigating to next page...','#93c5fd');await waitForPageChange(pf);}if(b)b.disabled=false;}function doImport(){if(!allCalls.length){msg('No calls to import.','#ef4444');return;}stopMonitor();unhook();log('Importing '+allCalls.length+' calls...');sendCalls(allCalls).catch(function(e){log('\\u274c '+e.message);setTimeout(function(){el.remove();},8000);});}function isEnabled(b){return!b.disabled&&b.getAttribute('aria-disabled')!=='true'&&!b.classList.contains('disabled');}function findNextBtn(){var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null,false);var n,pageNode=null;while(n=w.nextNode()){if(/\\d+-\\d+\\s+of\\s+\\d+/.test(n.textContent)){pageNode=n;break;}}if(pageNode){var cont=pageNode.parentElement;for(var depth=0;depth<6&&cont;depth++,cont=cont.parentElement){var btns=Array.from(cont.querySelectorAll('button,a,[role=button]'));for(var i=0;i<btns.length;i++){var t=btns[i].textContent.trim();var al=(btns[i].getAttribute('aria-label')||'');if((t==='>'||t==='\\u203a'||t==='\\u00bb'||/next/i.test(al))&&isEnabled(btns[i])){return btns[i];}}var allClickable=Array.from(cont.querySelectorAll('button,[role=button]')).filter(isEnabled);var pi=allClickable.findIndex(function(b){return b.contains(pageNode)||b===pageNode.parentElement||cont.compareDocumentPosition(b)>0;});if(allClickable.length>=2){var mid=Math.floor(allClickable.length/2);if(allClickable[mid]&&isEnabled(allClickable[mid]))return allClickable[mid];}}}var ab=Array.from(document.querySelectorAll('button,a,[role=button]'));for(var j=0;j<ab.length;j++){var bt=ab[j],tx=bt.textContent.trim(),al2=(bt.getAttribute('aria-label')||bt.getAttribute('title')||'');if((tx==='>'||tx==='\\u203a'||/\\bnext\\b/i.test(al2))&&isEnabled(bt)){return bt;}}return null;}async function waitForPageChange(prevFirst){return new Promise(function(res){var t=0,ck=setInterval(function(){t++;var pc=scrapeTable();var fi=pc&&pc.length?pc[0].interactionId:null;if(fi&&fi!==prevFirst){clearInterval(ck);res(true);return;}if(t>26){clearInterval(ck);res(false);}},300);});}async function doAuto(){msg('Starting auto-collect...','#93c5fd');var limit=100;for(var p=0;p<limit;p++){var pc=scrapeTable();var pf=pc&&pc.length?pc[0].interactionId:null;var added=await addPage();if(isLastPage()){msg('\\u2713 All done! '+allCalls.length+' calls collected.','#22c55e');return;}if(added===0&&allCalls.length>0){msg('\\u2713 No new calls, stopping. '+allCalls.length+' total.','#22c55e');return;}var nb=findNextBtn();if(!nb){msg('\\u2713 All done! '+allCalls.length+' calls collected.','#22c55e');return;}nb.click();msg('Page '+(p+2)+'... ('+allCalls.length+' so far)','#93c5fd');var ok=await waitForPageChange(pf);if(!ok){msg('\\u2713 No more pages. '+allCalls.length+' calls.','#22c55e');return;}}}var ip=scrapeTable();if(ip&&ip.length){allCalls=ip.filter(function(c){return c.recordingUrl;});if(allCalls.length){setUI();}else{log('Ready \\u2014 no recordings visible yet. Scroll or click the audio column to load them.');}}else{log('Ready \\u2014 waiting for calls to load.');}})()` }
@@ -1369,7 +1364,7 @@ function SettingsTab() {
       {/* Danger Zone */}
       <div className="bg-white border border-red-200 rounded-xl p-6 space-y-4">
         <div>
-          <h2 className="text-red-600 font-semibold text-lg">Danger Zone</h2>
+          <h2 className="text-gray-700 font-semibold text-lg">Danger Zone</h2>
           <p className="text-gray-500 text-sm mt-1">
             Permanently delete all calls, recordings references, and AI summaries from the database. Use this to start fresh if the dashboard shows stale or incorrect data.
           </p>
@@ -1377,13 +1372,13 @@ function SettingsTab() {
         {!resetConfirm ? (
           <button
             onClick={() => setResetConfirm(true)}
-            className="bg-red-50 hover:bg-red-100 border border-red-300 text-red-600 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+            className="bg-red-50 hover:bg-red-100 border border-red-300 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
           >
             Reset All Data
           </button>
         ) : (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
-            <p className="text-red-600 text-sm font-semibold">Are you sure? This cannot be undone.</p>
+            <p className="text-gray-700 text-sm font-semibold">Are you sure? This cannot be undone.</p>
             <p className="text-gray-500 text-xs">All {calls} calls and their AI analysis will be permanently deleted.</p>
             <div className="flex items-center gap-3">
               <button
@@ -1402,7 +1397,7 @@ function SettingsTab() {
             </div>
           </div>
         )}
-        {resetMsg && <p className={`text-sm ${resetMsg.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>{resetMsg}</p>}
+        {resetMsg && <p className={`text-sm ${resetMsg.startsWith('Error') ? 'text-gray-700' : 'text-gray-700'}`}>{resetMsg}</p>}
       </div>
     </div>
   );
@@ -1469,11 +1464,11 @@ function AgentsTab() {
                     <td className="py-3 px-4 text-gray-700">{agent.total_calls}</td>
                     <td className="py-3 px-4">
                       {agent.issue_type_count > 0 ? (
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-50 text-red-600 font-bold text-xs border border-red-200">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-gray-700 font-bold text-xs border border-gray-200">
                           {agent.issue_type_count}
                         </span>
                       ) : (
-                        <span className="text-emerald-600 text-xs font-medium">✓ Clean</span>
+                        <span className="text-gray-700 text-xs font-medium">✓ Clean</span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-gray-500 text-xs">{agent.issues?.[0]?.name ?? '—'}</td>
@@ -1499,7 +1494,7 @@ function AgentsTab() {
                                   <tr key={issue.id} className="border-b border-gray-200">
                                     <td className="py-2 px-3 text-gray-800 font-medium">{issue.name}</td>
                                     <td className="py-2 px-3">
-                                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-900/50 text-amber-600 font-bold text-xs border border-amber-700/40">
+                                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-gray-700 font-bold text-xs border border-gray-200">
                                         {issue.call_count}
                                       </span>
                                     </td>
@@ -1541,7 +1536,7 @@ function App() {
   const [tab, setTab] = useState('dashboard');
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f0f0f2]">
       {/* Header */}
       <header className="border-b border-gray-200 bg-white sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
