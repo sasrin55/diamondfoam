@@ -278,7 +278,7 @@ router.post('/import', async (req, res) => {
         String(interactionId),
         raw.agentName || raw.agent_name || raw.agentFullName || null,
         raw.agentId || raw.agent_id || null,
-        null,
+        raw.callerName || raw.caller_name || raw.distributorName || raw.distributor_name || null,
         cli, did, direction,
         raw.queueName || raw.queue_name || null,
         parseInt(raw.duration || raw.totalDuration || raw.billDuration || 0),

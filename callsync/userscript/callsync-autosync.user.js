@@ -210,7 +210,8 @@
       else if (h === 'queue')     cols.queue     = i;
       else if (h === "agent(s)")  cols.agent     = i;
       else if (h === 'duration')  cols.duration  = i;
-      else if (h === 'audio')     cols.audio     = i;
+      else if (h === 'audio')          cols.audio       = i;
+      else if (h === 'caller name')    cols.caller_name = i;
     });
 
     const rows = Array.from(tbl.querySelectorAll('tbody tr'));
@@ -231,6 +232,7 @@
         agentName:     cv('agent') || null,
         queueName:     cv('queue') || null,
         duration:      parseDur(cv('duration')),
+        callerName:    cv('caller_name') || null,
         recordingUrl:  recUrl || undefined,
       };
     }).filter(c => c.interactionId);
