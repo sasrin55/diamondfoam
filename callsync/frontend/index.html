@@ -861,7 +861,10 @@ function IssuesTab() {
         setIssues(arr);
         if (arr.length === 0 && !autoRan.current) {
           autoRan.current = true;
-          runAnalyze();
+          // Only auto-analyze if there are actually processed calls
+          fetch(`${API}/stats`).then(r => r.json()).then(s => {
+            if ((s.ai_processed || s.total_calls || 0) > 0) runAnalyze();
+          }).catch(() => {});
         }
       })
       .catch(console.error)
@@ -874,7 +877,10 @@ function IssuesTab() {
     setAnalyzing(true); setAnalyzeMsg('');
     try {
       const res = await fetch(`${API}/issues/analyze`, { method: 'POST' });
-      const data = await res.json();
+      let data = {};
+      try { data = await res.json(); } catch (_) {
+        throw new Error(res.status === 504 ? 'Request timed out — try again (fewer calls = faster)' : `Server error ${res.status}`);
+      }
       if (!res.ok) throw new Error(data.error || 'Analysis failed');
       setAnalyzeMsg(`Done — found ${data.issue_count} issue categories across ${data.calls_analysed} calls.`);
       fetchIssues();

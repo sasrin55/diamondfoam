@@ -16,7 +16,7 @@ router.post('/analyze', async (req, res) => {
       WHERE summary IS NOT NULL AND summary != ''
          OR (transcript IS NOT NULL AND transcript != '')
       ORDER BY recorded_at DESC
-      LIMIT 200
+      LIMIT 50
     `).all();
 
     if (calls.length === 0) {
